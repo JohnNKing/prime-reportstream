@@ -306,7 +306,7 @@ class Translator(private val metadata: Metadata, private val settings: SettingsP
         fromSchema: Schema,
         defaultValues: DefaultValues
     ): Mapping {
-        if (toSchema.topic != fromSchema.topic) error("Trying to match schema with different topics")
+        if (!checkTopicCompatability(toSchema, fromSchema)) error("Trying to match schema with different topics")
 
         val useDirectly = mutableMapOf<String, String>()
         val useValueSet: MutableMap<String, String> = mutableMapOf()
@@ -334,5 +334,23 @@ class Translator(private val metadata: Metadata, private val settings: SettingsP
             }
         }
         return Mapping(toSchema, fromSchema, useDirectly, useValueSet, useMapper, useDefault, missing)
+    }
+
+    /**
+     * Checks the compatability of the schemas passed in to verify translation is possible from one direction
+     * into another.
+     * @param toSchema [Schema] the schema we are translating to
+     * @param fromSchema [Schema] the schema we are translating from
+     */
+    private fun checkTopicCompatability(toSchema: Schema, fromSchema: Schema): Boolean {
+        // the "to" schema allows for any condition mapping
+        if (toSchema.topic == "*") return true
+        // the "from" schema allows for any condition mapping
+        if (fromSchema.topic == "*") return true
+        // since neither the "from" or "to" schemas allow for mapping any condition we need to
+        // now check that the topics are compatible, and if they are return true
+        if (toSchema.topic == fromSchema.topic) return true
+        // they are not compatible, return false
+        return false
     }
 }

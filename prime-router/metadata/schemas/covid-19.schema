@@ -827,7 +827,7 @@ elements:
     type: EI
     hl7Field: MSH-21
     default: PHLabReport-NoAck^ELR_Receiver^2.16.840.1.113883.9.11^ISO
-    documentation: The message profile identifer
+    documentation: The message profile identifier
 
   # name: public_health_case_id
   # type: ID
@@ -1054,7 +1054,7 @@ elements:
     natFlatFileField: Test_method_description
     hhsGuidanceField:
     hl7Field:
-    documentation: A text field that allows the lab to provide more information aboout the test method
+    documentation: A text field that allows the lab to provide more information about the test method
 
   - name: test_performed_code
     type: TABLE
