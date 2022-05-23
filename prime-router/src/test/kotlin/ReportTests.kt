@@ -202,6 +202,12 @@ class ReportTests {
         assertThat(oneDeidentified.getString(0, "a")).isEqualTo("TEST")
         assertThat(oneDeidentified.getString(1, "a")).isEqualTo("")
         assertThat(oneDeidentified.getString(0, "b")).isEqualTo("b1")
+
+        val oneDeidentifiedBlank = oneReport.deidentify("")
+        assertThat(oneDeidentifiedBlank.itemCount).isEqualTo(2)
+        assertThat(oneDeidentifiedBlank.getString(0, "a")).isEqualTo("")
+        assertThat(oneDeidentifiedBlank.getString(1, "a")).isEqualTo("")
+        assertThat(oneDeidentifiedBlank.getString(0, "b")).isEqualTo("b1")
     }
 
     @Test
