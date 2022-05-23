@@ -197,9 +197,10 @@ class ReportTests {
             metadata = metadata
         )
 
-        val oneDeidentified = oneReport.deidentify()
+        val oneDeidentified = oneReport.deidentify("TEST")
         assertThat(oneDeidentified.itemCount).isEqualTo(2)
-        assertThat(oneDeidentified.getString(0, "a")).isEqualTo("")
+        assertThat(oneDeidentified.getString(0, "a")).isEqualTo("TEST")
+        assertThat(oneDeidentified.getString(1, "a")).isEqualTo("TEST")
         assertThat(oneDeidentified.getString(0, "b")).isEqualTo("b1")
     }
 
