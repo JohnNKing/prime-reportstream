@@ -192,7 +192,7 @@ class ReportTests {
 
         val oneReport = Report(
             schema = one,
-            values = listOf(listOf("a1", "b1"), listOf("a2", "b2")),
+            values = listOf(listOf("a1", "b1"), listOf("", "b2")),
             source = TestSource,
             metadata = metadata
         )
@@ -200,7 +200,7 @@ class ReportTests {
         val oneDeidentified = oneReport.deidentify("TEST")
         assertThat(oneDeidentified.itemCount).isEqualTo(2)
         assertThat(oneDeidentified.getString(0, "a")).isEqualTo("TEST")
-        assertThat(oneDeidentified.getString(1, "a")).isEqualTo("TEST")
+        assertThat(oneDeidentified.getString(1, "a")).isEqualTo("")
         assertThat(oneDeidentified.getString(0, "b")).isEqualTo("b1")
     }
 
