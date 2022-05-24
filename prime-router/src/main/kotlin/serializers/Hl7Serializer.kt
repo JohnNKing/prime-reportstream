@@ -217,6 +217,30 @@ class Hl7Serializer(
         }
 
         /**
+         * Decodes the NTE segments based on their location. NTE fields can be in many places. For
+         * now, we're building this off of the idea of the field name, which is an admittedly terrible
+         * idea, but it's something that I think will get us over the hump. The ideal solution would
+         * be to allow and element to have an explicit HL7 map. Also, elements should have an array
+         * type that lets them hold multiple values, but all in due time
+         */
+        fun decodeNTESegment(element: Element, terser: Terser, fieldSpec: String): String {
+            val terserSpec = when {
+                element.hl7LocationSpec != null -> "${element.hl7LocationSpec}$fieldSpec"
+                else -> fieldSpec
+            }
+            val parsedValue = try {
+                terser.get(terserSpec)
+            } catch (e: HL7Exception) {
+                errors.add(
+                    InvalidHL7Message("Unexpected error while parsing $terserSpec for ${element.name}: ${e.message}")
+                )
+                null
+            }
+
+            return parsedValue ?: ""
+        }
+
+        /**
          * Decode answers to AOE questions
          * @param element the element for the AOE question
          * @param terser the HAPI terser
@@ -321,6 +345,9 @@ class Hl7Serializer(
                         hl7Field == "AOE" ->
                             decodeAOEQuestion(element, terser)
 
+                        hl7Field.startsWith("NTE") ->
+                            decodeNTESegment(element, terser, hl7Field)
+
                         // Process a CODE type field.  IMPORTANT: Must be checked after AOE as AOE is a CODE field
                         element.type == Element.Type.CODE -> {
                             val rawValue = queryTerserForValue(
@@ -360,6 +387,12 @@ class Hl7Serializer(
                 if (value.isNotBlank()) {
                     mappedRows[element.name] = value
                 }
+            }
+
+            // default the sender if one is passed in, and the sender is not pulled from the message
+            // TODO: figure out how to extract or map the sender out of the MSH header, for example by OID from MSH-3-2
+            if (mappedRows["sender_id"]?.trimToNull().isNullOrEmpty() && sender != null) {
+                mappedRows["sender_id"] = sender.name
             }
 
             // Second, we process all the element raw values through mappers and defaults.
@@ -473,7 +506,7 @@ class Hl7Serializer(
 
         // start processing
         var aoeSequence = 1
-        var nteSequence = 0
+        val nteSequence = mutableMapOf<String, Int>()
         val terser = Terser(message)
         setLiterals(terser, report)
         // we are going to set up overrides for the elements in the collection if the valueset
@@ -582,8 +615,13 @@ class Hl7Serializer(
                 setOrderingFacilityComponent(
                     terser, rawFacilityName = truncatedValue, useOrderingFacilityName, hl7Report, row
                 )
-            } else if (element.hl7Field == "NTE-3" && value.isNotBlank()) {
-                setNote(terser, nteSequence++, value)
+            } else if (element.hl7Field?.startsWith("NTE") == true) {
+                if (value.isEmpty() || element.hl7LocationSpec.isNullOrEmpty())
+                    return@forEach
+                if (!nteSequence.containsKey(element.hl7LocationSpec))
+                    nteSequence[element.hl7LocationSpec] = 0
+                setNote(terser, nteSequence[element.hl7LocationSpec]!!, value, element.hl7LocationSpec)
+                nteSequence[element.hl7LocationSpec] = nteSequence[element.hl7LocationSpec]?.plus(1)!!
             } else if (element.hl7Field == "MSH-7") {
                 // put the created date time into local time if the receiver wants it done
                 setComponent(
@@ -706,11 +744,11 @@ class Hl7Serializer(
             zipCode: String,
             countyCode: String
         ) {
-            if (address.isNullOrEmpty() &&
-                city.isNullOrEmpty() &&
-                state.isNullOrEmpty() &&
-                zipCode.isNullOrEmpty() &&
-                countyCode.isNullOrEmpty()
+            if (address.isEmpty() &&
+                city.isEmpty() &&
+                state.isEmpty() &&
+                zipCode.isEmpty() &&
+                countyCode.isEmpty()
             ) {
                 report.setString(row, field.plus("_street"), "11 Fake AtHome Test Street")
                 report.setString(row, field.plus("_city"), "Yakutat")
@@ -723,14 +761,14 @@ class Hl7Serializer(
         report.setString(row, "reporting_facility_clia", "0OCDCPRIME")
 
         val testResultStatus = report.getString(row, "test_result_status") ?: ""
-        if (testResultStatus.isNullOrEmpty()) {
+        if (testResultStatus.isEmpty()) {
             report.setString(row, "test_result_status", "F")
             report.setString(row, "order_result_status", "F")
             report.setString(row, "observation_result_status", "F")
         }
 
         val senderId = report.getString(row, "sender_id") ?: ""
-        if (!senderId.isNullOrEmpty()) {
+        if (!senderId.isEmpty()) {
             val comment = report.getString(row, "comment")
             report.setString(
                 row,
@@ -742,15 +780,15 @@ class Hl7Serializer(
         }
 
         val orderingProviderFirstName = report.getString(row, "ordering_provider_first_name") ?: ""
-        if (orderingProviderFirstName.isNullOrEmpty()) {
+        if (orderingProviderFirstName.isEmpty()) {
             report.setString(row, "ordering_provider_first_name", "SA.OverTheCounter")
         }
         val orderingFacilityName = report.getString(row, "ordering_facility_name") ?: ""
-        if (orderingFacilityName.isNullOrEmpty()) {
+        if (orderingFacilityName.isEmpty()) {
             report.setString(row, "ordering_facility_name", "SA.OverTheCounter")
         }
         val testingLabName = report.getString(row, "testing_lab_name") ?: ""
-        if (testingLabName.isNullOrEmpty()) {
+        if (testingLabName.isEmpty()) {
             report.setString(row, "testing_lab_name", "SA.OverTheCounter")
         }
 
@@ -790,11 +828,11 @@ class Hl7Serializer(
         )
 
         val testingLabClia = report.getString(row, "testing_lab_clia") ?: ""
-        if (testingLabClia.isNullOrEmpty()) {
+        if (testingLabClia.isEmpty()) {
             report.setString(row, "testing_lab_clia", "00Z0000014")
         }
         val testingLabIdAssigner = report.getString(row, "testing_lab_id_assigner") ?: ""
-        if (testingLabIdAssigner.isNullOrEmpty()) {
+        if (testingLabIdAssigner.isEmpty()) {
             report.setString(row, "testing_lab_id_assigner", "CLIA^2.16.840.1.113883.4.7^ISO")
         }
     }
@@ -1556,14 +1594,30 @@ class Hl7Serializer(
         }
     }
 
-    private fun setNote(terser: Terser, nteRep: Int, value: String) {
+    /**
+     * Create the note segments where they are supposed to be
+     */
+    private fun setNote(terser: Terser, nteRep: Int, value: String, locationSpec: String? = null) {
         if (value.isBlank()) return
-        terser.set(formPathSpec("NTE-1", nteRep), nteRep.plus(1).toString())
-        terser.set(formPathSpec("NTE-3", nteRep), value)
-        terser.set(formPathSpec("NTE-4-1", nteRep), "RE")
-        terser.set(formPathSpec("NTE-4-2", nteRep), "Remark")
-        terser.set(formPathSpec("NTE-4-3", nteRep), "HL70364")
-        terser.set(formPathSpec("NTE-4-7", nteRep), HL7_SPEC_VERSION)
+        when {
+            locationSpec != null -> {
+                val rep = "($nteRep)"
+                terser.set("${locationSpec}NTE$rep-1", nteRep.plus(1).toString())
+                terser.set("${locationSpec}NTE$rep-3", value)
+                terser.set("${locationSpec}NTE$rep-4-1", "RE")
+                terser.set("${locationSpec}NTE$rep-4-2", "Remark")
+                terser.set("${locationSpec}NTE$rep-4-3", "HL70364")
+                terser.set("${locationSpec}NTE$rep-4-7", HL7_SPEC_VERSION)
+            }
+            else -> {
+                terser.set(formPathSpec("NTE-1", nteRep), nteRep.plus(1).toString())
+                terser.set(formPathSpec("NTE-3", nteRep), value)
+                terser.set(formPathSpec("NTE-4-1", nteRep), "RE")
+                terser.set(formPathSpec("NTE-4-2", nteRep), "Remark")
+                terser.set(formPathSpec("NTE-4-3", nteRep), "HL70364")
+                terser.set(formPathSpec("NTE-4-7", nteRep), HL7_SPEC_VERSION)
+            }
+        }
     }
 
     /** set literal values in the HL7 */
@@ -1809,6 +1863,9 @@ class Hl7Serializer(
         error("Did match on component or subcomponent")
     }
 
+    /**
+     * Given a spec and a rep, safely build a path specifier for the terser to write to
+     */
     internal fun formPathSpec(spec: String, rep: Int? = null): String {
         val segment = spec.substring(0, 3)
         val components = spec.substring(3)
@@ -1816,6 +1873,9 @@ class Hl7Serializer(
         return "$segmentSpec$components"
     }
 
+    /**
+     * Forms the segment spec for dealing with HL7
+     */
     internal fun formSegSpec(segment: String, rep: Int? = null): String {
         val repSpec = rep?.let { "($rep)" } ?: ""
         return when (segment) {
@@ -1824,7 +1884,7 @@ class Hl7Serializer(
             "SPM" -> "/PATIENT_RESULT/ORDER_OBSERVATION/SPECIMEN/SPM"
             "PID" -> "/PATIENT_RESULT/PATIENT/PID"
             "OBX" -> "/PATIENT_RESULT/ORDER_OBSERVATION/OBSERVATION$repSpec/OBX"
-            "NTE" -> "/PATIENT_RESULT/ORDER_OBSERVATION/OBSERVATION/NTE$repSpec"
+            "NTE" -> "/PATIENT_RESULT/ORDER_OBSERVATION/NTE$repSpec"
             else -> segment
         }
     }

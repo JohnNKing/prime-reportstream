@@ -77,10 +77,11 @@ data class Element(
     val hl7Field: String? = null,
     val hl7OutputFields: List<String>? = null,
     val hl7AOEQuestion: String? = null,
+    val hl7LocationSpec: String? = null,
 
     /**
      * The header fields that correspond to an element.
-     * A element can output to multiple CSV fields.
+     * An element can output to multiple CSV fields.
      * The first field is considered the primary field. It is used
      * on input define the element
      */
@@ -233,6 +234,7 @@ data class Element(
             hl7Field = this.hl7Field ?: baseElement.hl7Field,
             hl7OutputFields = this.hl7OutputFields ?: baseElement.hl7OutputFields,
             hl7AOEQuestion = this.hl7AOEQuestion ?: baseElement.hl7AOEQuestion,
+            hl7LocationSpec = this.hl7LocationSpec ?: baseElement.hl7LocationSpec,
             documentation = this.documentation ?: baseElement.documentation,
             csvFields = this.csvFields ?: baseElement.csvFields,
             delimiter = this.delimiter ?: baseElement.delimiter,

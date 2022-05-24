@@ -43,5 +43,8 @@ enum class Topic(val json_val: String) {
     @JsonProperty("full-elr")
     FULL_ELR("full-elr"),
     @JsonProperty("covid-19")
-    COVID_19("covid-19")
+    COVID_19("covid-19"),
+    // a base ELR implementation. basically an HL7 passthrough
+    @JsonProperty("base-elr")
+    BASE_ELR("base-elr")
 }

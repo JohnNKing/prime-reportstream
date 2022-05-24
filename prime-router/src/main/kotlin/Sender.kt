@@ -28,7 +28,6 @@ import java.time.OffsetDateTime
  * @property senderType one of four broad sender categories
  * @property primarySubmissionMethod Sender preference for submission - manual or automatic
  */
-
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
@@ -38,6 +37,7 @@ import java.time.OffsetDateTime
 @JsonSubTypes(
     JsonSubTypes.Type(value = FullELRSender::class, name = "full-elr"),
     JsonSubTypes.Type(value = CovidSender::class, name = "covid-19"),
+    JsonSubTypes.Type(value = BaseELRSender::class, name = "base-elr"),
 )
 abstract class Sender(
     val topic: Topic,
@@ -212,8 +212,85 @@ abstract class Sender(
 }
 
 /**
+ * A base ELR sender is being treated as an HL7 pass-through. The goal is to modify and change as little as possible
+ * when ingesting the HL7. All of the fields are assumed to be filled in correctly by the sender, and then we
+ * pass it directly through to the receivers.
+ */
+class BaseELRSender : Sender {
+    /**
+     * A hardcoded schema name for the base ELR sender
+     */
+    val schemaName: String = "base-elr"
+    @JsonCreator constructor(
+        name: String,
+        organizationName: String,
+        format: Format = Format.HL7,
+        customerStatus: CustomerStatus = CustomerStatus.INACTIVE,
+        keys: List<JwkSet>? = null,
+        processingType: ProcessingType = ProcessingType.sync,
+        allowDuplicates: Boolean = true,
+        senderType: SenderType? = null,
+        primarySubmissionMethod: PrimarySubmissionMethod? = null
+    ) : super(
+        Topic.BASE_ELR,
+        name,
+        organizationName,
+        format,
+        customerStatus,
+        keys,
+        processingType,
+        allowDuplicates,
+        senderType,
+        primarySubmissionMethod,
+    )
+
+    /**
+     * A constructor copy that extracts just the name, organizationName, and the status from the copy
+     * in order to make a new version.
+     */
+    constructor(copy: BaseELRSender) : this(
+        copy.name,
+        copy.organizationName,
+        customerStatus = copy.customerStatus,
+        keys = if (copy.keys != null) ArrayList(copy.keys) else null
+    )
+
+    /**
+     * A copy constructor that adds a new key and new scope
+     */
+    constructor(copy: BaseELRSender, newScope: String, newJwk: Jwk) : this(
+        copy.name,
+        copy.organizationName,
+        customerStatus = copy.customerStatus,
+        keys = addJwkSet(copy.keys, newScope, newJwk),
+    )
+
+    /**
+     * To ensure existing functionality, we need to be able to create a copy of this BaseELRSender with
+     * a different scope and jwk.
+     */
+    override fun makeCopyWithNewScopeAndJwk(scope: String, jwk: Jwk): Sender {
+        return BaseELRSender(this, scope, jwk)
+    }
+
+    /**
+     * To ensure existing functionality, we need to be able to create a straight copy of this BaseELRSender
+     */
+    override fun makeCopy(): Sender {
+        return BaseELRSender(this)
+    }
+
+    /**
+     * For validation, not used in this context. Maybe refactor in the future.
+     */
+    override fun consistencyErrorMessage(metadata: Metadata): String? {
+        return null
+    }
+}
+
+/**
  *  This sender represents a sender that is sending full ELR data, not just covid data. It has all the same parameters
- *  as the base Sender abstract class, although may be extended / modified in the future.
+ *  as the base Sender abstract class, although it may be extended / modified in the future.
  */
 class FullELRSender : Sender {
     @JsonCreator constructor(

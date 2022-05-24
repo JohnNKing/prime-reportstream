@@ -1,6 +1,6 @@
 name: base-elr
 # allow translation across topics
-topic: "*"
+topic: base-elr
 trackingElement: message_id
 description: |
   A base ELR HL7 message. Used for ingesting data and supporting full ELR. 
@@ -15,20 +15,6 @@ elements:
     documentation: |
       This field is generated based on the normalcy status of the result. 
       A = abnormal; N = normal
-
-  - name: comment
-    type: TEXT
-    hl7Field: NTE-3
-
-  - name: comment_source
-    type: ID
-    hl7Field: NTE-2
-    valueSet: hl70105
-
-  - name: comment_type
-    type: CODE
-    hl7Field: NTE-4
-    valueSet: hl70364
 
   - name: date_result_released
     type: DATETIME
@@ -70,6 +56,21 @@ elements:
   - name: filler_clia
     type: ID_CLIA
     hl7Field: OBR-3-3
+
+  - name: observation_comment_source
+    type: TEXT
+    hl7Field: NTE-2
+    hl7LocationSpec: "/PATIENT_RESULT/ORDER_OBSERVATION/OBSERVATION/"
+
+  - name: observation_comment
+    type: TEXT
+    hl7Field: NTE-3
+    hl7LocationSpec: "/PATIENT_RESULT/ORDER_OBSERVATION/OBSERVATION/"
+
+  - name: observation_comment_type
+    type: TEXT
+    hl7Field: NTE-4
+    hl7LocationSpec: "/PATIENT_RESULT/ORDER_OBSERVATION/OBSERVATION/"
 
   - name: observation_result_status
     type: ID
@@ -166,8 +167,20 @@ elements:
 
   - name: ordering_provider_id_authority
     type: HD
-    hl7Field: ORC-12-9
     hl7OutputFields: [ ORC-12-9, OBR-16-9 ]
+
+  - name: ordering_provider_id_authority_namespace
+    type: TEXT
+    default: NPI
+    hl7OutputFields: [ ORC-12-9-1, OBR-16-9-1 ]
+
+  - name: ordering_provider_id_authority_id
+    type: TEXT
+    hl7OutputFields: [ ORC-12-9-2, OBR-16-9-2 ]
+
+  - name: ordering_provider_id_authority_id_type
+    type: ID
+    hl7OutputFields: [ ORC-12-9-3, OBR-16-9-3 ]
 
   - name: ordering_provider_id_authority_type
     type: TEXT
@@ -597,21 +610,48 @@ elements:
     valueSet: specimen_role
     hl7Field: SPM-11
 
-  - name: specimen_source_site_code
+  - name: specimen_source_site_id
     type: TEXT
-    hl7Field: SPM-8
-    documentation: |
-      Refers back to the specimen source site, which is then encoded into the SPM-8 segment
+    hl7Field: SPM-8-1
 
-  - name: specimen_type
+  - name: specimen_source_site_text
     type: TEXT
-    hl7Field: SPM-4
-    documentation: The specimen source, such as Blood or Serum
+    hl7Field: SPM-8-2
+
+  - name: specimen_source_site_coding_system
+    type: TEXT
+    hl7Field: SPM-8-3
+
+  - name: specimen_source_site_coding_system_version
+    type: TEXT
+    hl7Field: SPM-8-7
+
+  - name: specimen_type_id
+    type: TEXT
+    hl7Field: SPM-4-1
+    documentation: The ID for the specimen type
+
+  - name: specimen_type_text
+    type: TEXT
+    hl7Field: SPM-4-2
+    documentation: The text value for the specimen type
+
+  - name: specimen_type_coding_system
+    type: ID
+    hl7Field: SPM-4-3
+    documentation: The name of the coding system the specimen type ID comes from (LOINC, SNOMED, etc)
+
+  - name: specimen_type_coding_system_version
+    type: TEXT
+    hl7Field: SPM-4-7
+    documentation: The version of the coding system used for the ID and text values
 
   - name: test_correction_reason
     type: TEXT
     hl7Field: NTE-3
+    cardinality: ZERO_OR_ONE
     pii: true
+    hl7LocationSpec: "/PATIENT_RESULT/ORDER_OBSERVATION/"
 
   - name: test_kit_name_id
     type: TEXT

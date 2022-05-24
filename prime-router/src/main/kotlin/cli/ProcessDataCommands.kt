@@ -9,6 +9,7 @@ import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.int
 import gov.cdc.prime.router.ActionLog
+import gov.cdc.prime.router.BaseELRSender
 import gov.cdc.prime.router.CovidSender
 import gov.cdc.prime.router.CustomConfiguration
 import gov.cdc.prime.router.CustomerStatus
@@ -384,18 +385,15 @@ class ProcessData(
         val (schema, sender) = when (inputClientInfo) {
             is InputClientInfo.InputClient -> {
                 val clientName = (inputClientInfo as InputClientInfo.InputClient).clientName
-                val sender = fileSettings.findSender(clientName) ?: error("Sender $clientName was not found")
-                if (sender is CovidSender) {
-                    Pair(
+                when (val sender = fileSettings.findSender(clientName) ?: error("Sender $clientName was not found")) {
+                    is CovidSender -> Pair(
                         sender.let {
                             metadata.findSchema(it.schemaName) ?: error("Schema ${it.schemaName} was not found")
                         },
                         sender
                     )
-                } else {
-                    Pair(
-                        null, sender
-                    )
+                    is BaseELRSender -> Pair(metadata.findSchema("base-elr"), sender)
+                    else -> Pair(null, sender)
                 }
             }
             is InputClientInfo.InputSchema -> {
@@ -404,7 +402,7 @@ class ProcessData(
                 metadata.findSchema(schName) ?: error("Schema $inputSchema was not found")
                 // Get a random sender name that uses the provided schema, or null if no sender is found.
                 val sender = fileSettings.senders.filter {
-                    it is CovidSender && it.schemaName == schName
+                    (it is CovidSender && it.schemaName == schName) || (it is BaseELRSender)
                 }.randomOrNull()
                 Pair(metadata.findSchema(schName), sender)
             }
@@ -412,6 +410,8 @@ class ProcessData(
                 error("input schema or client's name must be specified")
             }
         }
+
+        echo("Schema name: '${schema?.name}'. Sender id: '${sender?.name}'")
 
         // Gather input source
         var inputReport: Report = when (inputSource) {

@@ -18,6 +18,12 @@
       customerStatus: active
       schemaName: hl7/test-covid-19
       format: HL7
+    - name: base-elr-test
+      organizationName: simple_report
+      topic: base-elr
+      customerStatus: active
+      schemaName: base-elr
+      format: HL7
 
 - name: waters
   description: Test Sender from Waters
