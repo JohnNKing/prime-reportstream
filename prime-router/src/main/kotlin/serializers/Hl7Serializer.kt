@@ -3,8 +3,15 @@ package gov.cdc.prime.router.serializers
 import ca.uhn.hl7v2.DefaultHapiContext
 import ca.uhn.hl7v2.HL7Exception
 import ca.uhn.hl7v2.model.Type
+import ca.uhn.hl7v2.model.Varies
+import ca.uhn.hl7v2.model.v251.datatype.CE
+import ca.uhn.hl7v2.model.v251.datatype.CWE
 import ca.uhn.hl7v2.model.v251.datatype.DR
 import ca.uhn.hl7v2.model.v251.datatype.DT
+import ca.uhn.hl7v2.model.v251.datatype.EI
+import ca.uhn.hl7v2.model.v251.datatype.EIP
+import ca.uhn.hl7v2.model.v251.datatype.IS
+import ca.uhn.hl7v2.model.v251.datatype.ST
 import ca.uhn.hl7v2.model.v251.datatype.TS
 import ca.uhn.hl7v2.model.v251.datatype.XTN
 import ca.uhn.hl7v2.model.v251.message.ORU_R01
@@ -246,6 +253,85 @@ class Hl7Serializer(
             return value
         }
 
+        fun decodeAlternatePath(elrMessage: ORU_R01, pathSpec: String) {
+            /**
+             * Given an array of type info (because HL7 fields are arrays of types in HAPI)
+             * get the field that we are looking for by branching on the type of the value
+             * in [field] and pull out [fieldNum]. [idx] is passed in just for the purposes
+             * of reporting and could go away at some point.
+             */
+            fun getValue(field: Array<Type?>?, fieldNum: Int, idx: Int) {
+                when (field?.get(0)) {
+                    is CE -> {
+                        val value = (field[0] as CE).components[fieldNum]
+                        logger.info("CE - $idx :::: $value")
+                    }
+                    is CWE -> {
+                        val value = (field[0] as CWE).components[fieldNum]
+                        logger.info("CWE - $idx :::: $value")
+                    }
+                    is DT -> {
+                        val value = (field[0] as DT).value
+                        logger.info("DT - $idx :::: $value")
+                    }
+                    is EI -> {
+                        val value = (field[0] as EI).components[fieldNum]
+                        logger.info("EI - $idx :::: $value")
+                    }
+                    is IS -> {
+                        val value = (field[0] as IS).value
+                        logger.info("IS - $idx :::: $value")
+                    }
+                    is ST -> {
+                        val value = (field[0] as ST).value
+                        logger.info("ST - $idx :::: $value")
+                    }
+                    is TS -> {
+                        val value = (field[0] as TS).time.value
+                        logger.info("DT - $idx :::: $value")
+                    }
+                    is Varies -> {
+                        val varies = (field[0] as Varies)
+                        if (varies.data is Varies) {
+                            logger.info("RECURSIVE LOOP $idx :::: $varies")
+                        } else {
+                            // recurse in
+                            getValue(arrayOf(varies.data), fieldNum, idx)
+                        }
+                    }
+                    else -> {
+                        logger.info("$idx :::: ${field?.get(0)?.toString() ?: "WAS NULL"}")
+                        logger.info(field?.get(0)?.javaClass ?: "NULL")
+                    }
+                }
+            }
+            val specParts = pathSpec.split('-')
+            if (specParts.count() == 1) {
+                when (specParts[0].uppercase()) {
+                    "OBX" -> {
+                        elrMessage.patienT_RESULT.ordeR_OBSERVATIONAll.forEachIndexed { idx, observation ->
+                            observation.observationAll.forEach {
+                                logger.info("$idx ::: ${it.obx.obx3_ObservationIdentifier.ce1_Identifier}")
+                            }
+                        }
+                    }
+                }
+            } else {
+                elrMessage.patienT_RESULT.ordeR_OBSERVATIONAll.forEachIndexed { idx, observation ->
+                    observation.observationAll.forEach {
+                        var field: Array<Type?>? = it.obx.getField(specParts[1].toInt())
+                        for (c in 2 until specParts.count()) {
+                            val fieldNum = specParts[c].toInt()
+                            if (field?.size != null && field.size >= fieldNum)
+                                field = arrayOf(field[fieldNum - 1])
+                        }
+                        val fieldNum = specParts.last().toInt() - 1
+                        getValue(field, fieldNum, idx)
+                    }
+                }
+            }
+        }
+
         // key of the map is the column header, list is the values in the column
         val mappedRows: MutableMap<String, String> = mutableMapOf()
         hapiContext.modelClassFactory = modelClassFactory
@@ -291,8 +377,21 @@ class Hl7Serializer(
         try {
             val terser = Terser(hapiMsg)
 
-            val orc23 = terser.getSegment("/.ORC")
-            logger.debug(orc23.name)
+            /*
+            (hapiMsg as ORU_R01).patienT_RESULT.ordeR_OBSERVATIONAll.forEachIndexed { index, observation ->
+                observation.observationAll.forEach {
+                    val value = (((it.get("OBX") as OBX).getField(3) as Array<Type>)[0] as CE).components[0]
+                    logger.info(
+                        "$index :::: $value"
+                    )
+                }
+            }
+            */
+            val oru = hapiMsg as ORU_R01;
+            decodeAlternatePath(oru, "OBX")
+            decodeAlternatePath(oru, "OBX-3-1")
+            decodeAlternatePath(oru, "OBX-5-1")
+            decodeAlternatePath(oru, "OBX-14")
 
             // First, extract any data elements from the HL7 message.
             schema.elements.forEach { element ->
