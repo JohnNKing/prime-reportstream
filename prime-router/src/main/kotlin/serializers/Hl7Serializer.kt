@@ -47,7 +47,6 @@ import gov.cdc.prime.router.common.StringUtilities.trimToNull
 import gov.cdc.prime.router.metadata.ElementAndValue
 import gov.cdc.prime.router.metadata.Mapper
 import org.apache.logging.log4j.kotlin.Logging
-import org.jooq.impl.DSL.array
 import java.io.InputStream
 import java.io.OutputStream
 import java.time.Instant
@@ -302,59 +301,45 @@ class Hl7Serializer(
      * this method
      */
     fun decodeAlternatePath(elrMessage: ORU_R01, pathSpec: String) = sequence {
+        fun recurseTypes(indices: List<Int>, field: Array<Type>): Type {
+            if (indices.count() > 1) {
+                val fieldNum = indices.first()
+                recurseTypes(indices.drop(1), arrayOf(field[fieldNum - 1]))
+            }
+            return field[0]
+        }
         val specParts = pathSpec.split('-')
         if (specParts.count() < 2) {
             logger.error("Not able to query path $pathSpec as provided. Expected both segment and index.")
             return@sequence
         }
-        var field: Array<Type>
         val indices = specParts.drop(1).map { it.toInt() }
         when (specParts[0].uppercase()) {
             "MSH" -> {
-                field = elrMessage.msh.getField(indices[0])
-                indices.drop(1).forEach { fieldNum ->
-                    if (field.size >= fieldNum) {
-                        field = arrayOf(field[fieldNum - 1])
-                    }
-                }
+                val f = recurseTypes(indices.drop(1), elrMessage.msh.getField(indices[0]))
                 val fieldNum = indices.last() - 1
-                yield(getValue(field[0], fieldNum, 0))
+                yield(getValue(f, fieldNum, 0))
             }
             "PID" -> {
-                field = elrMessage.patienT_RESULT.patient.pid.getField(indices[0])
-                indices.drop(1).forEach { fieldNum ->
-                    if (field.size >= fieldNum) {
-                        field = arrayOf(field[fieldNum - 1])
-                    }
-                }
+                val f = recurseTypes(indices.drop(1), elrMessage.patienT_RESULT.patient.pid.getField(indices[0]))
                 val fieldNum = indices.last() - 1
-                yield(getValue(field[0], fieldNum, 0))
+                yield(getValue(f, fieldNum, 0))
             }
             "OBX" -> {
                 elrMessage.patienT_RESULT.ordeR_OBSERVATIONAll.forEachIndexed { _, orderObservation ->
                     orderObservation.observationAll.forEachIndexed { observationIndex, observation ->
-                        field = observation.obx.getField(indices[0])
-                        indices.drop(1).forEach { fieldNum ->
-                            if (field.size >= fieldNum) {
-                                field = arrayOf(field[fieldNum - 1])
-                            }
-                        }
+                        val f = recurseTypes(indices.drop(1), observation.obx.getField(indices[0]))
                         val fieldNum = indices.last() - 1
-                        yield(getValue(field[0], fieldNum, observationIndex))
+                        yield(getValue(f, fieldNum, observationIndex))
                     }
                 }
             }
             "SPM" -> {
                 elrMessage.patienT_RESULT.ordeR_OBSERVATIONAll.forEachIndexed { _, orderObservation ->
                     orderObservation.specimenAll.forEachIndexed { specimenIndex, specimen ->
-                        field = specimen.spm.getField(indices[0])
-                        indices.drop(1).forEach { fieldNum ->
-                            if (field.size >= fieldNum) {
-                                field = arrayOf(field[fieldNum - 1])
-                            }
-                        }
+                        val f = recurseTypes(indices.drop(1), specimen.spm.getField(indices[0]))
                         val fieldNum = indices.last() - 1
-                        yield(getValue(field[0], fieldNum, specimenIndex))
+                        yield(getValue(f, fieldNum, specimenIndex))
                     }
                 }
             }
