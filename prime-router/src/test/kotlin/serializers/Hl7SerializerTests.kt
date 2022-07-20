@@ -1,8 +1,12 @@
 package gov.cdc.prime.router.serializers
 
 import assertk.assertThat
+import assertk.assertions.contains
+import assertk.assertions.hasSize
+import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isLessThanOrEqualTo
+import assertk.assertions.isNotEmpty
 import assertk.assertions.isNotNull
 import assertk.assertions.isNull
 import assertk.assertions.isTrue
@@ -70,7 +74,8 @@ class Hl7SerializerTests {
         // Bad field value
         every { mockTerser.getSegment(any()) } returns null
         var phoneNumber = serializer.decodeHl7TelecomData(
-            mockTerser, Element("phone", Element.Type.TELEPHONE),
+            mockTerser,
+            Element("phone", Element.Type.TELEPHONE),
             "PID-BLAH"
         )
         assertThat(phoneNumber).isEqualTo("")
@@ -1001,5 +1006,114 @@ NTE|1|L|This is a final comment|RE"""
             )
             assertThat(terser.get("MSH-3-1")).isEqualTo("Don't replace me")
         }
+    }
+
+    /** parsing flow has been moved to its own testable method, which we check here */
+    @Test
+    fun `test parsing cleaned message`() {
+        val settings = FileSettings("./settings")
+        val serializer = Hl7Serializer(UnitTestUtils.simpleMetadata, settings)
+        // check an empty message. message should be null
+        serializer.parseStringToMessage("").run {
+            assertThat(this.first).isNull()
+            this.second.run {
+                assertThat(this.warnings).isEmpty()
+                assertThat(this.errors).isNotEmpty()
+                assertThat(this.errors.first().message).contains("Message encoding is not recognized")
+            }
+        }
+        // we don't process ADT messages right now
+        val adtMessage = """
+MSH|^~\&||.|||199908180016||ADT^A04|ADT.1.1698593|P|2.7
+PID|1||000395122||LEVERKUHN^ADRIAN^C||19880517180606|M|||6 66TH AVE NE^^WEIMAR^DL^98052||(157)983-3296|||S||12354768|87654321
+NK1|1|TALLIS^THOMAS^C|GRANDFATHER|12914 SPEM ST^^ALIUM^IN^98052|(157)883-6176
+NK1|2|WEBERN^ANTON|SON|12 STRASSE MUSIK^^VIENNA^AUS^11212|(123)456-7890
+IN1|1|PRE2||LIFE PRUDENT BUYER|PO BOX 23523^WELLINGTON^ON^98111|||19601||||||||THOMAS^JAMES^M|F|||||||||||||||||||ZKA535529776
+        """.trimIndent()
+        val cleanedMessage = reg.replace(adtMessage, hl7SegmentDelimiter).trim()
+        serializer.parseStringToMessage(cleanedMessage).run {
+            assertThat(this.first).isNull()
+            this.second.run {
+                assertThat(this.errors).isEmpty()
+                assertThat(this.warnings).isNotEmpty()
+            }
+        }
+        // val an ORU_R01 message
+        val oruMessage = """MSH|^~\&|CDC PRIME - Atlanta, Georgia (Dekalb)^2.16.840.1.114222.4.1.237821^ISO|Avante at Ormond Beach^10D0876999^CLIA|||20210210170737||ORU^R01^ORU_R01|371784|P|2.5.1|||NE|NE|USA||||PHLabReportNoAck^ELR_Receiver^2.16.840.1.113883.9.11^ISO
+SFT|Centers for Disease Control and Prevention|0.1-SNAPSHOT|PRIME ReportStream|0.1-SNAPSHOT||20210210
+PID|1||2a14112c-ece1-4f82-915c-7b3a8d152eda^^^Avante at Ormond Beach^PI||Sample^Kareem^Millie^^^^L||19580810|F||2106-3^White^HL70005^^^^2.5.1|688 Leighann Inlet^^South Rodneychester^TX^67071||^PRN^^roscoe.wilkinson@email.com^1^211^2240784|||||||||U^Unknown^HL70189||||||||N
+ORC|RE|73a6e9bd-aaec-418e-813a-0ad33366ca85|73a6e9bd-aaec-418e-813a-0ad33366ca85|||||||||1629082607^Eddin^Husam^^^^^^CMS&2.16.840.1.113883.3.249&ISO^^^^NPI||^WPN^^^1^386^6825220|20210209||||||Avante at Ormond Beach|170 North King Road^^Ormond Beach^FL^32174^^^^12127|^WPN^^jbrush@avantecenters.com^1^407^7397506|^^^^32174
+OBR|1|73a6e9bd-aaec-418e-813a-0ad33366ca85||94558-4^SARS-CoV-2 (COVID-19) Ag [Presence] in Respiratory specimen by Rapid immunoassay^LN|||202102090000-0600|202102090000-0600||||||||1629082607^Eddin^Husam^^^^^^CMS&2.16.840.1.113883.3.249&ISO^^^^NPI|^WPN^^^1^386^6825220|||||202102090000-0600|||F
+OBX|1|CWE|94558-4^SARS-CoV-2 (COVID-19) Ag [Presence] in Respiratory specimen by Rapid immunoassay^LN||260415000^Not detected^SCT|||N^Normal (applies to non-numeric results)^HL70078|||F|||202102090000-0600|||CareStart COVID-19 Antigen test_Access Bio, Inc._EUA^^99ELR||202102090000-0600||||Avante at Ormond Beach^^^^^CLIA&2.16.840.1.113883.4.7&ISO^^^^10D0876999^CLIA|170 North King Road^^Ormond Beach^FL^32174^^^^12127
+NTE|1|L|This is a comment|RE
+SPM|1|||258500001^Nasopharyngeal swab^SCT||||71836000^Nasopharyngeal structure (body structure)^SCT^^^^2020-09-01|||||||||202102090000-0600^202102090000-0600
+NTE|1|L|This is a final comment|RE"""
+        reg.replace(oruMessage, hl7SegmentDelimiter).trim().run {
+            serializer.parseStringToMessage(this).run {
+                assertThat(this.first).isNotNull()
+                this.second.run {
+                    assertThat(this.errors).isEmpty()
+                    assertThat(this.warnings).isEmpty()
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `test alternate decoding methodology`() {
+        val oruMessage = """MSH|^~\&|CDC PRIME - Atlanta, Georgia (Dekalb)^2.16.840.1.114222.4.1.237821^ISO|Avante at Ormond Beach^10D0876999^CLIA|||20210210170737||ORU^R01^ORU_R01|371784|P|2.5.1|||NE|NE|USA||||PHLabReportNoAck^ELR_Receiver^2.16.840.1.113883.9.11^ISO
+SFT|Centers for Disease Control and Prevention|0.1-SNAPSHOT|PRIME ReportStream|0.1-SNAPSHOT||20210210
+PID|1||2a14112c-ece1-4f82-915c-7b3a8d152eda^^^Avante at Ormond Beach^PI||Sample^Kareem^Millie^^^^L||19580810|F||2106-3^White^HL70005^^^^2.5.1|688 Leighann Inlet^^South Rodneychester^TX^67071||^PRN^^roscoe.wilkinson@email.com^1^211^2240784|||||||||U^Unknown^HL70189||||||||N
+ORC|RE|73a6e9bd-aaec-418e-813a-0ad33366ca85|73a6e9bd-aaec-418e-813a-0ad33366ca85|||||||||1629082607^Eddin^Husam^^^^^^CMS&2.16.840.1.113883.3.249&ISO^^^^NPI||^WPN^^^1^386^6825220|20210209||||||Avante at Ormond Beach|170 North King Road^^Ormond Beach^FL^32174^^^^12127|^WPN^^jbrush@avantecenters.com^1^407^7397506|^^^^32174
+OBR|1|73a6e9bd-aaec-418e-813a-0ad33366ca85||94558-4^SARS-CoV-2 (COVID-19) Ag [Presence] in Respiratory specimen by Rapid immunoassay^LN|||202102090000-0600|202102090000-0600||||||||1629082607^Eddin^Husam^^^^^^CMS&2.16.840.1.113883.3.249&ISO^^^^NPI|^WPN^^^1^386^6825220|||||202102090000-0600|||F
+OBX|1|CWE|94558-4^SARS-CoV-2 (COVID-19) Ag [Presence] in Respiratory specimen by Rapid immunoassay^LN||260415000^Not detected^SCT|||N^Normal (applies to non-numeric results)^HL70078|||F|||202102090000-0600|||CareStart COVID-19 Antigen test_Access Bio, Inc._EUA^^99ELR||202102090000-0600||||Avante at Ormond Beach^^^^^CLIA&2.16.840.1.113883.4.7&ISO^^^^10D0876999^CLIA|170 North King Road^^Ormond Beach^FL^32174^^^^12127
+OBX|2|CWE|94558-4^SARS-CoV-2 (COVID-19) Ag [Presence] in Respiratory specimen by Rapid immunoassay^LN||260415000^Not detected^SCT|||N^Normal (applies to non-numeric results)^HL70078|||F|||202102090001-0600|||CareStart COVID-19 Antigen test_Access Bio, Inc._EUA^^99ELR||202102090000-0600||||Avante at Ormond Beach^^^^^CLIA&2.16.840.1.113883.4.7&ISO^^^^10D0876999^CLIA|170 North King Road^^Ormond Beach^FL^32174^^^^12127
+NTE|1|L|This is a comment|RE
+SPM|1|||258500001^Nasopharyngeal swab^SCT||||71836000^Nasopharyngeal structure (body structure)^SCT^^^^2020-09-01|||||||||202102090000-0600^202102090000-0600
+SPM|2|||258500001^Nasopharyngeal swab^SCT||||71836000^Nasopharyngeal structure (body structure)^SCT^^^^2020-09-01|||||||||202102090001-0600^202102090000-0600
+SPM|3|||258500001^Nasopharyngeal swab^SCT||||71836000^Nasopharyngeal structure (body structure)^SCT^^^^2020-09-01|||||||||202102090002-0600^202102090000-0600
+NTE|1|L|This is a final comment|RE"""
+        val settings = FileSettings("./settings")
+        val serializer = Hl7Serializer(UnitTestUtils.simpleMetadata, settings)
+        reg.replace(oruMessage, hl7SegmentDelimiter).trim().run {
+            serializer.parseStringToMessage(this).run {
+                val hapiMsg = this.first
+                assertThat(hapiMsg).isNotNull()
+                (hapiMsg as ORU_R01).run {
+                    serializer.decodeAlternatePath(this, "OBX-14-1").toList().let {
+                        assertThat(it).isNotEmpty()
+                        assertThat(it).hasSize(2)
+                        assertThat(it[0]).isEqualTo("202102090000-0600")
+                        assertThat(it[1]).isEqualTo("202102090001-0600")
+                    }
+                    serializer.decodeAlternatePath(this, "SPM-17-1").toList().let {
+                        assertThat(it).isNotEmpty()
+                        assertThat(it).hasSize(3)
+                        assertThat(it[0]).isEqualTo("202102090000-0600")
+                        assertThat(it[1]).isEqualTo("202102090001-0600")
+                        assertThat(it[2]).isEqualTo("202102090002-0600")
+                    }
+                    serializer.decodeAlternatePath(this, "MSH-3-2").toList().let {
+                        assertThat(it).isNotEmpty()
+                        assertThat(it).hasSize(1)
+                        assertThat(it[0]).isEqualTo("2.16.840.1.114222.4.1.237821")
+                    }
+                    serializer.decodeAlternatePath(this, "PID-3-1").toList().let {
+                        assertThat(it).isNotEmpty()
+                        assertThat(it).hasSize(1)
+                        assertThat(it[0]).isEqualTo("2a14112c-ece1-4f82-915c-7b3a8d152eda")
+                    }
+                    // non-existent segments
+                    serializer.decodeAlternatePath(this, "CTD-1-1").toList().let {
+                        assertThat(it).isEmpty()
+                    }
+                }
+            }
+        }
+    }
+
+    companion object {
+        val reg = "[\r\n]".toRegex()
+        const val hl7SegmentDelimiter: String = "\r"
     }
 }

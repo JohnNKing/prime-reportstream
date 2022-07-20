@@ -6,10 +6,13 @@ import ca.uhn.hl7v2.model.Type
 import ca.uhn.hl7v2.model.Varies
 import ca.uhn.hl7v2.model.v251.datatype.CE
 import ca.uhn.hl7v2.model.v251.datatype.CWE
+import ca.uhn.hl7v2.model.v251.datatype.CX
 import ca.uhn.hl7v2.model.v251.datatype.DR
 import ca.uhn.hl7v2.model.v251.datatype.DT
 import ca.uhn.hl7v2.model.v251.datatype.EI
 import ca.uhn.hl7v2.model.v251.datatype.EIP
+import ca.uhn.hl7v2.model.v251.datatype.HD
+import ca.uhn.hl7v2.model.v251.datatype.ID
 import ca.uhn.hl7v2.model.v251.datatype.IS
 import ca.uhn.hl7v2.model.v251.datatype.ST
 import ca.uhn.hl7v2.model.v251.datatype.TS
@@ -44,6 +47,7 @@ import gov.cdc.prime.router.common.StringUtilities.trimToNull
 import gov.cdc.prime.router.metadata.ElementAndValue
 import gov.cdc.prime.router.metadata.Mapper
 import org.apache.logging.log4j.kotlin.Logging
+import org.jooq.impl.DSL.array
 import java.io.InputStream
 import java.io.OutputStream
 import java.time.Instant
@@ -74,10 +78,20 @@ class Hl7Serializer(
         val item: Map<String, List<String>>,
         val errors: MutableList<ActionLogDetail>,
         val warnings: MutableList<ActionLogDetail>
-    )
+    ) {
+        companion object {
+            /** Create an empty object */
+            fun emptyMessageResult(): MessageResult = MessageResult(emptyMap(), mutableListOf(), mutableListOf())
 
-    private val hl7SegmentDelimiter: String = "\r"
-    private val hapiContext = DefaultHapiContext()
+            /** Some MessageResults only return a single error */
+            fun errorMessageResult(error: ActionLogDetail) =
+                MessageResult(emptyMap(), mutableListOf(error), mutableListOf())
+
+            /** Some MessageResults only return for a single warning */
+            fun warningMessageResult(warning: ActionLogDetail) =
+                MessageResult(emptyMap(), mutableListOf(), mutableListOf(warning))
+        }
+    }
     private val modelClassFactory: ModelClassFactory = CanonicalModelClassFactory(HL7_SPEC_VERSION)
     private val buildVersion: String
     private val buildDate: String
@@ -193,6 +207,228 @@ class Hl7Serializer(
     }
 
     /**
+     * Given an array of type info (because HL7 fields are arrays of types in HAPI)
+     * get the field that we are looking for by branching on the type of the value
+     * in [field] and pull out [fieldNum]. [idx] is passed in just for the purposes
+     * of reporting and could go away at some point.
+     */
+    fun getValue(field: Type, fieldNum: Int, idx: Int): String? {
+        if (field.isEmpty()) {
+            logger.warn("Unable to process field. Returning...")
+            return null
+        }
+
+        return when (field) {
+            is CE -> {
+                val value = field.components[fieldNum]
+                logger.info("CE - $idx :::: $value")
+                value.toString()
+            }
+            is CWE -> {
+                val value = field.components[fieldNum]
+                logger.info("CWE - $idx :::: $value")
+                value.toString()
+            }
+            is CX -> {
+                val value = field.components[fieldNum]
+                logger.info("CX - $idx ::::: $value")
+                getValue(value, fieldNum, idx)
+            }
+            is DR -> {
+                // DR is made of two TS. recurse!
+                val value = field.components[fieldNum]
+                getValue(value, fieldNum, idx)
+            }
+            is DT -> {
+                val value = field.value
+                logger.info("DT - $idx :::: $value")
+                value
+            }
+            is EI -> {
+                val value = field.components[fieldNum]
+                logger.info("EI - $idx :::: $value")
+                value.toString()
+            }
+            is EIP -> {
+                val value = field.components[fieldNum]
+                logger.info("EIP - $idx :::: $value")
+                value.toString()
+            }
+            is HD -> {
+                val value = field.components[fieldNum]
+                getValue(value, fieldNum, idx)
+            }
+            is ID -> {
+                val value = field.value
+                logger.info("ID - $idx :::: $value")
+                value
+            }
+            is IS -> {
+                val value = field.value
+                logger.info("IS - $idx :::: $value")
+                value
+            }
+            is ST -> {
+                val value = field.value
+                logger.info("ST - $idx :::: $value")
+                value
+            }
+            is TS -> {
+                val value = field.time.value
+                logger.info("DT - $idx :::: $value")
+                value
+            }
+            is Varies -> {
+                if (field.data is Varies) {
+                    logger.info("RECURSIVE LOOP $idx :::: $field")
+                    return null
+                } else {
+                    // recurse in
+                    getValue(field.data, fieldNum, idx)
+                }
+            }
+            else -> {
+                logger.info("$idx :::: $field")
+                logger.info(field.javaClass)
+                return null
+            }
+        }
+    }
+
+    /**
+     * Given an ORU_R01 [elrMessage] and a [pathSpec], walk through all the repeats
+     * and get out the values for that field. For example, if there are four OBX repeats
+     * in a message, and we want to get all the values for OBX-3-1-1, we can do that with
+     * this method
+     */
+    fun decodeAlternatePath(elrMessage: ORU_R01, pathSpec: String) = sequence {
+        val specParts = pathSpec.split('-')
+        if (specParts.count() < 2) {
+            logger.error("Not able to query path $pathSpec as provided. Expected both segment and index.")
+            return@sequence
+        }
+        var field: Array<Type>
+        val indices = specParts.drop(1).map { it.toInt() }
+        when (specParts[0].uppercase()) {
+            "MSH" -> {
+                field = elrMessage.msh.getField(indices[0])
+                indices.drop(1).forEach { fieldNum ->
+                    if (field.size >= fieldNum) {
+                        field = arrayOf(field[fieldNum - 1])
+                    }
+                }
+                val fieldNum = indices.last() - 1
+                yield(getValue(field[0], fieldNum, 0))
+            }
+            "PID" -> {
+                field = elrMessage.patienT_RESULT.patient.pid.getField(indices[0])
+                indices.drop(1).forEach { fieldNum ->
+                    if (field.size >= fieldNum) {
+                        field = arrayOf(field[fieldNum - 1])
+                    }
+                }
+                val fieldNum = indices.last() - 1
+                yield(getValue(field[0], fieldNum, 0))
+            }
+            "OBX" -> {
+                elrMessage.patienT_RESULT.ordeR_OBSERVATIONAll.forEachIndexed { _, orderObservation ->
+                    orderObservation.observationAll.forEachIndexed { observationIndex, observation ->
+                        field = observation.obx.getField(indices[0])
+                        indices.drop(1).forEach { fieldNum ->
+                            if (field.size >= fieldNum) {
+                                field = arrayOf(field[fieldNum - 1])
+                            }
+                        }
+                        val fieldNum = indices.last() - 1
+                        yield(getValue(field[0], fieldNum, observationIndex))
+                    }
+                }
+            }
+            "SPM" -> {
+                elrMessage.patienT_RESULT.ordeR_OBSERVATIONAll.forEachIndexed { _, orderObservation ->
+                    orderObservation.specimenAll.forEachIndexed { specimenIndex, specimen ->
+                        field = specimen.spm.getField(indices[0])
+                        indices.drop(1).forEach { fieldNum ->
+                            if (field.size >= fieldNum) {
+                                field = arrayOf(field[fieldNum - 1])
+                            }
+                        }
+                        val fieldNum = indices.last() - 1
+                        yield(getValue(field[0], fieldNum, specimenIndex))
+                    }
+                }
+            }
+            else -> return@sequence
+        }
+    }
+
+    /**
+     * Given a cleaned string in [rawHl7Message], try to parse it out as an ORU_R01 message by
+     * invoking the [PreParser] and checking MSH-9-1 and MSH-9-2 for the correct values. If those values
+     * are not present in those two segments, we return a [MessageResult] with some explanatory errors and/or
+     * warnings. If we find what we want, then we return the parsed message and can continue on
+     * @return a pair that contains a nullable [Message] and a [MessageResult]. We know if the message is null, there was an error
+     */
+    fun parseStringToMessage(rawHl7Message: String): Pair<ca.uhn.hl7v2.model.Message?, MessageResult> {
+        hapiContext.modelClassFactory = modelClassFactory
+        val parser = hapiContext.pipeParser
+        return try {
+            // First check that we have an HL7 message we can parse.  Note some older messages may have
+            // only MSH 9-1 and MSH-9-2, or even just MSH-9-1, so we need use those two fields to compare
+            val msgType = PreParser.getFields(rawHl7Message, "MSH-9-1", "MSH-9-2")
+            val messageStructure = PreParser.getFields(rawHl7Message, "MSH-9-3")
+            when {
+                // if the message type is null, or we don't have any information to go on for the actual
+                // message structure, then we need to return an error from here. Message will be null
+                msgType.isNullOrEmpty() || msgType[0] == null -> {
+                    Pair(
+                        null,
+                        MessageResult.errorMessageResult(
+                            InvalidHL7Message("Missing required HL7 message type field MSH-9")
+                        )
+                    )
+                }
+                // if MSH-9-1 equals ORU and MSH-9-2 equals R01, then this is the type of message we want
+                // to process for an ELR transmission
+                arrayOf("ORU", "R01") contentEquals msgType -> Pair(
+                    parser.parse(rawHl7Message),
+                    MessageResult.emptyMessageResult()
+                )
+                // alternatively, the message could also have the 'structure' in MSH-9-3, which we search for
+                // the string value 'ORU_R01', at which point we then also return our pair of the parsed message
+                // and an empty message result
+                arrayOf("ORU_R01") contentEquals messageStructure -> Pair(
+                    parser.parse(rawHl7Message),
+                    MessageResult.emptyMessageResult()
+                )
+                // something didn't pass checking or parsing, so we need to return an object with a warning
+                // and a null message
+                else -> {
+                    return Pair(
+                        null,
+                        MessageResult.warningMessageResult(
+                            InvalidHL7Message
+                            ("Ignoring unsupported HL7 message type ${msgType.joinToString(",")}")
+                        )
+                    )
+                }
+            }
+        } catch (e: HL7Exception) {
+            // in this case, the message was malformed and could not be parsed, so we need to make sure that
+            // trap it and return the error that we trapped. Message will be null and the messageResult will
+            // have other details
+            logger.error("${e.localizedMessage} ${e.stackTraceToString()}")
+            val error = if (e is EncodingNotSupportedException) {
+                // This exception error message is a bit cryptic, so let's provide a better one.
+                InvalidHL7Message("Error parsing HL7 message: Invalid HL7 message format")
+            } else {
+                InvalidHL7Message("Error parsing HL7 message: ${e.localizedMessage}")
+            }
+            Pair(null, MessageResult.errorMessageResult(error))
+        }
+    }
+
+    /**
      * Convert an HL7 [message] with [messageIndex] index based on the specified [schema] and [sender].
      * @return the resulting data
      */
@@ -253,89 +489,8 @@ class Hl7Serializer(
             return value
         }
 
-        fun decodeAlternatePath(elrMessage: ORU_R01, pathSpec: String) {
-            /**
-             * Given an array of type info (because HL7 fields are arrays of types in HAPI)
-             * get the field that we are looking for by branching on the type of the value
-             * in [field] and pull out [fieldNum]. [idx] is passed in just for the purposes
-             * of reporting and could go away at some point.
-             */
-            fun getValue(field: Array<Type?>?, fieldNum: Int, idx: Int) {
-                when (field?.get(0)) {
-                    is CE -> {
-                        val value = (field[0] as CE).components[fieldNum]
-                        logger.info("CE - $idx :::: $value")
-                    }
-                    is CWE -> {
-                        val value = (field[0] as CWE).components[fieldNum]
-                        logger.info("CWE - $idx :::: $value")
-                    }
-                    is DT -> {
-                        val value = (field[0] as DT).value
-                        logger.info("DT - $idx :::: $value")
-                    }
-                    is EI -> {
-                        val value = (field[0] as EI).components[fieldNum]
-                        logger.info("EI - $idx :::: $value")
-                    }
-                    is IS -> {
-                        val value = (field[0] as IS).value
-                        logger.info("IS - $idx :::: $value")
-                    }
-                    is ST -> {
-                        val value = (field[0] as ST).value
-                        logger.info("ST - $idx :::: $value")
-                    }
-                    is TS -> {
-                        val value = (field[0] as TS).time.value
-                        logger.info("DT - $idx :::: $value")
-                    }
-                    is Varies -> {
-                        val varies = (field[0] as Varies)
-                        if (varies.data is Varies) {
-                            logger.info("RECURSIVE LOOP $idx :::: $varies")
-                        } else {
-                            // recurse in
-                            getValue(arrayOf(varies.data), fieldNum, idx)
-                        }
-                    }
-                    else -> {
-                        logger.info("$idx :::: ${field?.get(0)?.toString() ?: "WAS NULL"}")
-                        logger.info(field?.get(0)?.javaClass ?: "NULL")
-                    }
-                }
-            }
-            val specParts = pathSpec.split('-')
-            if (specParts.count() == 1) {
-                when (specParts[0].uppercase()) {
-                    "OBX" -> {
-                        elrMessage.patienT_RESULT.ordeR_OBSERVATIONAll.forEachIndexed { idx, observation ->
-                            observation.observationAll.forEach {
-                                logger.info("$idx ::: ${it.obx.obx3_ObservationIdentifier.ce1_Identifier}")
-                            }
-                        }
-                    }
-                }
-            } else {
-                elrMessage.patienT_RESULT.ordeR_OBSERVATIONAll.forEachIndexed { idx, observation ->
-                    observation.observationAll.forEach {
-                        var field: Array<Type?>? = it.obx.getField(specParts[1].toInt())
-                        for (c in 2 until specParts.count()) {
-                            val fieldNum = specParts[c].toInt()
-                            if (field?.size != null && field.size >= fieldNum)
-                                field = arrayOf(field[fieldNum - 1])
-                        }
-                        val fieldNum = specParts.last().toInt() - 1
-                        getValue(field, fieldNum, idx)
-                    }
-                }
-            }
-        }
-
         // key of the map is the column header, list is the values in the column
         val mappedRows: MutableMap<String, String> = mutableMapOf()
-        hapiContext.modelClassFactory = modelClassFactory
-        val parser = hapiContext.pipeParser
         val reg = "[\r\n]".toRegex()
         val cleanedMessage = reg.replace(message, hl7SegmentDelimiter).trim()
         // if the message is empty, return a row result that warns of empty data
@@ -345,50 +500,15 @@ class Hl7Serializer(
             return MessageResult(emptyMap(), errors, warnings)
         }
 
-        val hapiMsg = try {
-            // First check that we have an HL7 message we can parse.  Note some older messages may have
-            // only MSH 9-1 and MSH-9-2, or even just MSH-9-1, so we need use those two fields to compare
-            val msgType = PreParser.getFields(cleanedMessage, "MSH-9-1", "MSH-9-2")
-            when {
-                msgType.isNullOrEmpty() || msgType[0] == null -> {
-                    errors.add(InvalidHL7Message("Missing required HL7 message type field MSH-9"))
-                    return MessageResult(emptyMap(), errors, warnings)
-                }
-                arrayOf("ORU", "R01") contentEquals msgType -> parser.parse(cleanedMessage)
-                else -> {
-                    warnings.add(
-                        InvalidHL7Message
-                        ("Ignoring unsupported HL7 message type ${msgType.joinToString(",")}")
-                    )
-                    return MessageResult(emptyMap(), errors, warnings)
-                }
-            }
-        } catch (e: HL7Exception) {
-            logger.error("${e.localizedMessage} ${e.stackTraceToString()}")
-            if (e is EncodingNotSupportedException) {
-                // This exception error message is a bit cryptic, so let's provide a better one.
-                errors.add(InvalidHL7Message("Error parsing HL7 message: Invalid HL7 message format"))
-            } else {
-                errors.add(InvalidHL7Message("Error parsing HL7 message: ${e.localizedMessage}"))
-            }
-            return MessageResult(emptyMap(), errors, warnings)
-        }
+        val (hapiMsg, messageResult) = parseStringToMessage(cleanedMessage)
+        // if our parsed message is null that means that our checking failed, and we have a message
+        // result with details for the sender, and we need to exit here
+        if (hapiMsg == null) return messageResult
 
         try {
             val terser = Terser(hapiMsg)
 
-            /*
-            (hapiMsg as ORU_R01).patienT_RESULT.ordeR_OBSERVATIONAll.forEachIndexed { index, observation ->
-                observation.observationAll.forEach {
-                    val value = (((it.get("OBX") as OBX).getField(3) as Array<Type>)[0] as CE).components[0]
-                    logger.info(
-                        "$index :::: $value"
-                    )
-                }
-            }
-            */
-            val oru = hapiMsg as ORU_R01;
-            decodeAlternatePath(oru, "OBX")
+            val oru = hapiMsg as ORU_R01
             decodeAlternatePath(oru, "OBX-3-1")
             decodeAlternatePath(oru, "OBX-5-1")
             decodeAlternatePath(oru, "OBX-14")
@@ -456,6 +576,7 @@ class Hl7Serializer(
                                 terser, getTerserSpec(hl7Field)
                             )
                     }
+                    // we have a value based on parsing
                     if (value.isNotBlank()) break
                 }
 
@@ -2141,7 +2262,8 @@ class Hl7Serializer(
         const val OBX_18_EQUIPMENT_UID_OID: String = "2.16.840.1.113883.3.3719"
         /** the default org name type code. defaults to "L" */
         const val DEFAULT_ORGANIZATION_NAME_TYPE_CODE: String = "L"
-
+        const val hl7SegmentDelimiter: String = "\r"
+        private val hapiContext = DefaultHapiContext()
         val phoneNumberUtil: PhoneNumberUtil = PhoneNumberUtil.getInstance()
 
         /*
