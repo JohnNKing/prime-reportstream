@@ -1495,6 +1495,37 @@
         numberPerDay: 1440
         initialTime: 00:00
         timeZone: EASTERN
+    - name: elr-monkeypox
+      organizationName: tn-doh
+      topic: monkeypox
+      customerStatus: active
+      routingFilter:
+        - "AllowAll()"
+      processingModeFilter:
+        - "AllowAll()"
+      qualityFilter:
+        - "AllowAll()"
+      jurisdictionalFilter:
+        - orEquals(ordering_facility_state, TN, patient_state, TN)
+      translation:
+        type: HL7
+        useBatchHeaders: true
+        schemaName: monkeypox
+        receivingApplicationName: tdh-ELR
+        receivingApplicationOID: 2.16.840.1.113883.3.773.1.1.3
+        receivingFacilityName: TDH
+        receivingFacilityOID: 2.16.840.1.113883.3.773
+      transport:
+        type: SFTP
+        host: sftp
+        port: 22
+        filePath: ./upload
+        credentialName: DEFAULT-SFTP
+      timing:
+        operation: MERGE
+        numberPerDay: 1440
+        initialTime: 00:00
+        timeZone: EASTERN
 
 - name: ms-doh
   description: Mississippi Department of Health
