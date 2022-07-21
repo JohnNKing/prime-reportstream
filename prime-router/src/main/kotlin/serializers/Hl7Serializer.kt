@@ -14,6 +14,7 @@ import ca.uhn.hl7v2.model.v251.datatype.EIP
 import ca.uhn.hl7v2.model.v251.datatype.HD
 import ca.uhn.hl7v2.model.v251.datatype.ID
 import ca.uhn.hl7v2.model.v251.datatype.IS
+import ca.uhn.hl7v2.model.v251.datatype.NM
 import ca.uhn.hl7v2.model.v251.datatype.ST
 import ca.uhn.hl7v2.model.v251.datatype.TS
 import ca.uhn.hl7v2.model.v251.datatype.XTN
@@ -265,6 +266,11 @@ class Hl7Serializer(
             is IS -> {
                 val value = field.value
                 logger.info("IS - $idx :::: $value")
+                value
+            }
+            is NM -> {
+                val value = field.value
+                logger.info("NM - $idx :::: $value")
                 value
             }
             is ST -> {
