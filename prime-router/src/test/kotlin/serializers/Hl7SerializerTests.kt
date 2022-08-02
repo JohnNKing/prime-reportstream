@@ -1140,6 +1140,11 @@ NTE|1|L|This is a final comment|RE"""
                 val hapiMsg = this.first
                 assertThat(hapiMsg).isNotNull()
                 (hapiMsg as ORU_R01).run {
+                    serializer.decodeAlternatePath(this, "SFT-2").toList().let {
+                        assertThat(it).isNotEmpty()
+                        assertThat(it).hasSize(1)
+                        assertThat(it[0]).isEqualTo("0.1-SNAPSHOT")
+                    }
                     serializer.decodeAlternatePath(this, "OBX-14-1").toList().let {
                         assertThat(it).isNotEmpty()
                         assertThat(it).hasSize(2)

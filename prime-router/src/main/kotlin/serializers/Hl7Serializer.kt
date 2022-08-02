@@ -326,6 +326,13 @@ class Hl7Serializer(
                 val fieldNum = indices.last() - 1
                 yield(getValue(f, fieldNum, 0))
             }
+            "SFT" -> {
+                elrMessage.sftAll.forEachIndexed { idx, sft ->
+                    val f = recurseTypes(indices.drop(1), sft.getField(indices[0]))
+                    val fieldNum = indices.last() - 1
+                    yield(getValue(f, fieldNum, idx))
+                }
+            }
             "PID" -> {
                 val f = recurseTypes(indices.drop(1), elrMessage.patienT_RESULT.patient.pid.getField(indices[0]))
                 val fieldNum = indices.last() - 1
