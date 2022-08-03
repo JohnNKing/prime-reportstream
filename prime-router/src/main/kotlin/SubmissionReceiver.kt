@@ -52,6 +52,20 @@ abstract class SubmissionReceiver(
     )
 
     companion object {
+        internal fun getSubmissionReceiver(
+            sender: Sender,
+            workflowEngine: WorkflowEngine,
+            actionHistory: ActionHistory
+        ): SubmissionReceiver {
+            val receiver by lazy {
+                when (sender) {
+                    is CovidSender, is MonkeypoxSender -> TopicReceiver(workflowEngine, actionHistory)
+                    else -> ELRReceiver(workflowEngine, actionHistory)
+                }
+            }
+            return receiver
+        }
+
         /**
          * Checks the [report] rows looking for duplicates, and adds errors as needed
          */

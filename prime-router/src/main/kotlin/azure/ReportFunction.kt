@@ -13,19 +13,16 @@ import gov.cdc.prime.router.ActionError
 import gov.cdc.prime.router.ActionLog
 import gov.cdc.prime.router.ActionLogLevel
 import gov.cdc.prime.router.ActionLogger
-import gov.cdc.prime.router.CovidSender
 import gov.cdc.prime.router.DEFAULT_SEPARATOR
-import gov.cdc.prime.router.ELRReceiver
 import gov.cdc.prime.router.HasSchema
 import gov.cdc.prime.router.InvalidParamMessage
 import gov.cdc.prime.router.InvalidReportMessage
-import gov.cdc.prime.router.MonkeypoxSender
 import gov.cdc.prime.router.Options
 import gov.cdc.prime.router.ROUTE_TO_SEPARATOR
 import gov.cdc.prime.router.Schema
 import gov.cdc.prime.router.Sender
 import gov.cdc.prime.router.Sender.ProcessingType
-import gov.cdc.prime.router.TopicReceiver
+import gov.cdc.prime.router.SubmissionReceiver
 import gov.cdc.prime.router.azure.db.enums.TaskAction
 import gov.cdc.prime.router.common.JacksonMapperUtilities
 import gov.cdc.prime.router.history.azure.SubmissionsFacade
@@ -88,7 +85,10 @@ class ReportFunction(
         actionHistory.trackActionParams(request)
 
         return try {
-            processRequest(request, sender)
+            processRequest(
+                request, sender,
+                SubmissionReceiver.getSubmissionReceiver(sender, workflowEngine, actionHistory)
+            )
         } catch (ex: Exception) {
             if (ex.message != null) {
                 logger.error(ex.message!!, ex)
@@ -139,7 +139,10 @@ class ReportFunction(
                 "Authorized request by org ${claims.organizationNameClaim}" +
                     " to submit data via client id ${sender.organizationName}.  Beginning to ingest report"
             )
-            return processRequest(request, sender)
+            return processRequest(
+                request, sender,
+                SubmissionReceiver.getSubmissionReceiver(sender, workflowEngine, actionHistory)
+            )
         } catch (ex: Exception) {
             if (ex.message != null) {
                 logger.error(ex.message!!, ex)
@@ -160,7 +163,8 @@ class ReportFunction(
      */
     internal fun processRequest(
         request: HttpRequestMessage<String?>,
-        sender: Sender
+        sender: Sender,
+        receiver: SubmissionReceiver
     ): HttpResponseMessage {
         // determine if we should be following the sync or async workflow
         val isAsync = processingType(request, sender) == ProcessingType.async
@@ -185,10 +189,6 @@ class ReportFunction(
 
                 // Only process the report if we are not checking for connection or validation.
                 if (options != Options.CheckConnections && options != Options.ValidatePayload) {
-                    val receiver = when (sender) {
-                        is CovidSender, is MonkeypoxSender -> TopicReceiver(workflowEngine, actionHistory)
-                        else -> ELRReceiver(workflowEngine, actionHistory)
-                    }
 
                     // send report on its way, either via the COVID pipeline or the full ELR pipeline
                     receiver.validateAndMoveToProcessing(

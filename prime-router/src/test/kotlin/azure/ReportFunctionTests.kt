@@ -13,6 +13,7 @@ import gov.cdc.prime.router.Receiver
 import gov.cdc.prime.router.Report
 import gov.cdc.prime.router.Sender
 import gov.cdc.prime.router.SettingsProvider
+import gov.cdc.prime.router.SubmissionReceiver
 import gov.cdc.prime.router.azure.db.enums.TaskAction
 import gov.cdc.prime.router.tokens.AuthenticatedClaims
 import gov.cdc.prime.router.tokens.AuthenticationStrategy
@@ -128,7 +129,7 @@ class ReportFunctionTests {
         val resp = HttpUtilities.okResponse(req, "fakeOkay")
         every { engine.db } returns accessSpy
         mockkObject(AuthenticationStrategy.Companion)
-        every { reportFunc.processRequest(any(), any()) } returns resp
+        every { reportFunc.processRequest(any(), any(), any()) } returns resp
         every { engine.settings.findSender(any()) } returns sender // This test only works with org = simple_report
         return Pair(reportFunc, req)
     }
@@ -147,7 +148,7 @@ class ReportFunctionTests {
         // Invoke the waters function run
         reportFunc.submitToWaters(req)
         // processFunction should never be called
-        verify(exactly = 0) { reportFunc.processRequest(any(), any()) }
+        verify(exactly = 0) { reportFunc.processRequest(any(), any(), any()) }
     }
 
     @Test
@@ -163,7 +164,7 @@ class ReportFunctionTests {
         // Invoke the waters function run
         reportFunc.submitToWaters(req)
         // processFunction should be called
-        verify(exactly = 1) { reportFunc.processRequest(any(), any()) }
+        verify(exactly = 1) { reportFunc.processRequest(any(), any(), any()) }
     }
 
     @Test
@@ -179,7 +180,7 @@ class ReportFunctionTests {
         // Invoke the waters function run
         reportFunc.submitToWaters(req)
         // processFunction should never be called
-        verify(exactly = 0) { reportFunc.processRequest(any(), any()) }
+        verify(exactly = 0) { reportFunc.processRequest(any(), any(), any()) }
     }
 
     /**
@@ -200,7 +201,7 @@ class ReportFunctionTests {
         // Invoke the waters function run
         reportFunc.submitToWaters(req)
         // processFunction should be called
-        verify(exactly = 1) { reportFunc.processRequest(any(), any()) }
+        verify(exactly = 1) { reportFunc.processRequest(any(), any(), any()) }
     }
 
     @Test
@@ -216,7 +217,7 @@ class ReportFunctionTests {
             "content-length" to "4"
         )
         reportFunc.submitToWaters(req)
-        verify(exactly = 1) { reportFunc.processRequest(any(), any()) }
+        verify(exactly = 1) { reportFunc.processRequest(any(), any(), any()) }
     }
 
     @Test
@@ -233,7 +234,7 @@ class ReportFunctionTests {
             "content-length" to "4"
         )
         reportFunc.submitToWaters(req)
-        verify(exactly = 1) { reportFunc.processRequest(any(), any()) }
+        verify(exactly = 1) { reportFunc.processRequest(any(), any(), any()) }
     }
 
     @Test
@@ -251,7 +252,7 @@ class ReportFunctionTests {
         val req = MockHttpRequestMessage("test")
         val resp = HttpUtilities.okResponse(req, "fakeOkay")
 
-        every { reportFunc.processRequest(any(), any()) } returns resp
+        every { reportFunc.processRequest(any(), any(), any()) } returns resp
         every { engine.settings.findSender(any()) } returns sender
 
         req.httpHeaders += mapOf(
@@ -263,7 +264,7 @@ class ReportFunctionTests {
         reportFunc.run(req)
 
         // processFunction should be called
-        verify(exactly = 1) { reportFunc.processRequest(any(), any()) }
+        verify(exactly = 1) { reportFunc.processRequest(any(), any(), any()) }
     }
 
     // TODO: Will need to copy this test for Full ELR senders once receiving full ELR is implemented (see #5051)
@@ -282,7 +283,7 @@ class ReportFunctionTests {
         val req = MockHttpRequestMessage("test")
         val resp = HttpUtilities.okResponse(req, "fakeOkay")
 
-        every { reportFunc.processRequest(any(), any()) } returns resp
+        every { reportFunc.processRequest(any(), any(), any()) } returns resp
         every { engine.settings.findSender("Test Sender") } returns sender
 
         req.httpHeaders += mapOf(
@@ -294,7 +295,7 @@ class ReportFunctionTests {
         reportFunc.run(req)
 
         // processFunction should be called
-        verify(exactly = 1) { reportFunc.processRequest(any(), any()) }
+        verify(exactly = 1) { reportFunc.processRequest(any(), any(), any()) }
     }
 
     // Returns 400 bad request
@@ -312,7 +313,7 @@ class ReportFunctionTests {
         val req = MockHttpRequestMessage("test")
         val resp = HttpUtilities.okResponse(req, "fakeOkay")
 
-        every { reportFunc.processRequest(any(), any()) } returns resp
+        every { reportFunc.processRequest(any(), any(), any()) } returns resp
         every { engine.settings.findSender("Test Sender") } returns sender
 
         req.httpHeaders += mapOf(
@@ -340,7 +341,7 @@ class ReportFunctionTests {
         val req = MockHttpRequestMessage("test")
         val resp = HttpUtilities.okResponse(req, "fakeOkay")
 
-        every { reportFunc.processRequest(any(), any()) } returns resp
+        every { reportFunc.processRequest(any(), any(), any()) } returns resp
         every { engine.settings.findSender("Test Sender") } returns null
 
         req.httpHeaders += mapOf(
@@ -396,7 +397,10 @@ class ReportFunctionTests {
         every { accessSpy.isDuplicateItem(any(), any()) } returns true
 
         // act
-        var resp = reportFunc.processRequest(req, sender)
+        var resp = reportFunc.processRequest(
+            req, sender,
+            SubmissionReceiver.getSubmissionReceiver(sender, engine, actionHistory)
+        )
 
         // assert
         verify(exactly = 2) { engine.isDuplicateItem(any()) }
