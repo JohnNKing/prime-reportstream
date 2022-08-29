@@ -55,6 +55,10 @@ variable "storage_account" {
   description = "Storage account to host file shares"
 }
 
+variable "storage_account_v2" {
+  description = "Storage account to host file shares"
+}
+
 variable "admin_share" {
   description = "Admin file share"
 }
@@ -72,5 +76,3 @@ variable "network_profile_id" {
   type        = string
   description = "Network profile resource id"
 }
-
-variable "subnet_id" {}

@@ -19,4 +19,4 @@ variable "location" {
 }
 
 variable "azure_vns" {}
-
+variable "address_id" {}

@@ -10,6 +10,7 @@ module "network" {
   resource_prefix = local.init.resource_prefix
   location        = local.init.location
   azure_vns       = local.network.config
+  address_id      = local.address_id
 }
 
 module "nat_gateway" {
