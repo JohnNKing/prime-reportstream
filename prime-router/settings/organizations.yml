@@ -121,6 +121,17 @@
       schemaName: direct/safehealth-covid-19
       format: CSV
 
+- name: testjames
+  description: testjames
+  jurisdiction: FEDERAL
+  senders:
+    - name: default
+      organizationName: testjames
+      topic: covid-19
+      customerStatus: testing
+      schemaName: upload-covid-19
+      format: CSV
+
 - name: cue
   description: Cue
   jurisdiction: FEDERAL
