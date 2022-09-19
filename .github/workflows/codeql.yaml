@@ -64,7 +64,7 @@ jobs:
     
     - name: build
       run: mvn clean install -Dmaven.test.skip=true
-      working-directory: $(git rev-parse --show-toplevel)
+      working-directory: .
     #   make bootstrap
     #   make release
 
