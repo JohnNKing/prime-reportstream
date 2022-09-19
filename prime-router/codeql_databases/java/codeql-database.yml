@@ -1,0 +1,34 @@
+---
+sourceLocationPrefix: "C:\\Users\\58917\\workspace\\CDC\\prime-reportstream\\prime-router"
+baselineLinesOfCode: 0
+unicodeNewlines: false
+columnKind: "utf16"
+primaryLanguage: "java"
+inProgress:
+  primaryLanguage: "java"
+  installedExtractors:
+    cpp:
+    - "file:///C:/Users/58917/codeql/cpp/"
+    csharp:
+    - "file:///C:/Users/58917/codeql/csharp/"
+    csv:
+    - "file:///C:/Users/58917/codeql/csv/"
+    go:
+    - "file:///C:/Users/58917/codeql/go/"
+    html:
+    - "file:///C:/Users/58917/codeql/html/"
+    java:
+    - "file:///C:/Users/58917/codeql/java/"
+    javascript:
+    - "file:///C:/Users/58917/codeql/javascript/"
+    properties:
+    - "file:///C:/Users/58917/codeql/properties/"
+    python:
+    - "file:///C:/Users/58917/codeql/python/"
+    ruby:
+    - "file:///C:/Users/58917/codeql/ruby/"
+    xml:
+    - "file:///C:/Users/58917/codeql/xml/"
+creationMetadata:
+  cliVersion: "2.10.4"
+  creationTime: "2022-09-19T17:54:51.317134800Z"
