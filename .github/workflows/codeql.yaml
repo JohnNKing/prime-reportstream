@@ -1,4 +1,4 @@
-name: "Running CodeQL scanning on prime-reportstream repository"
+name: "Running CodeQL Analysis scan on prime-reportstream repository"
 
 on: push
   # pull_request:
