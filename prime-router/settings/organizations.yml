@@ -24,6 +24,12 @@
       customerStatus: active
       schemaName: upload-covid-19
       format: CSV
+    - name: simplereport-flu
+      organizationName: simple_report
+      topic: influenza
+      customerStatus: active
+      schemaName: influenza/simple-report-influenza
+      format: CSV
 
 - name: waters
   description: Test Sender from Waters

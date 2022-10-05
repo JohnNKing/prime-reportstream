@@ -52,5 +52,8 @@ enum class Topic(val json_val: String) {
     COVID_19("covid-19"),
 
     @JsonProperty("monkeypox")
-    MONKEYPOX("monkeypox")
+    MONKEYPOX("monkeypox"),
+
+    @JsonProperty("influenza")
+    INFLUENZA("influenza")
 }

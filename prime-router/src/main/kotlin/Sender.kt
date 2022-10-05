@@ -51,7 +51,8 @@ interface HasSchema {
 @JsonSubTypes(
     JsonSubTypes.Type(value = FullELRSender::class, name = "full-elr"),
     JsonSubTypes.Type(value = CovidSender::class, name = "covid-19"),
-    JsonSubTypes.Type(value = MonkeypoxSender::class, name = "monkeypox")
+    JsonSubTypes.Type(value = MonkeypoxSender::class, name = "monkeypox"),
+    JsonSubTypes.Type(value = InfluenzaSender::class, name = "influenza")
 )
 abstract class Sender(
     val topic: Topic,
@@ -498,6 +499,78 @@ class MonkeypoxSender : TopicSender, HasSchema {
      */
     override fun makeCopy(): Sender {
         return MonkeypoxSender(this)
+    }
+
+    /**
+     * For validation, not used in this context. Maybe refactor in the future.
+     */
+    override fun consistencyErrorMessage(metadata: Metadata): String? {
+        return null
+    }
+}
+
+/**
+ * Our influenza sender
+ */
+class InfluenzaSender : TopicSender, HasSchema {
+    @JsonCreator
+    constructor(
+        name: String,
+        organizationName: String,
+        format: Format,
+        customerStatus: CustomerStatus = CustomerStatus.INACTIVE,
+        schemaName: String,
+        keys: List<JwkSet>? = null,
+        processingType: ProcessingType = sync,
+        allowDuplicates: Boolean = true,
+        senderType: SenderType? = null,
+        primarySubmissionMethod: PrimarySubmissionMethod? = null
+    ) : super(
+        name,
+        organizationName,
+        format,
+        customerStatus,
+        schemaName,
+        Topic.INFLUENZA,
+        keys,
+        processingType,
+        allowDuplicates,
+        senderType,
+        primarySubmissionMethod
+    )
+
+    constructor(copy: InfluenzaSender) : this(
+        copy.name,
+        copy.organizationName,
+        copy.format,
+        copy.customerStatus,
+        copy.schemaName,
+        if (copy.keys != null) ArrayList(copy.keys) else null
+    )
+
+    // constructor that copies and adds a key
+    constructor(copy: InfluenzaSender, newScope: String, newJwk: Jwk) : this(
+        copy.name,
+        copy.organizationName,
+        copy.format,
+        copy.customerStatus,
+        copy.schemaName,
+        addJwkSet(copy.keys, newScope, newJwk)
+    )
+
+    /**
+     * To ensure existing functionality, we need to be able to create a copy of this CovidSender with
+     * a different scope and jwk.
+     */
+    override fun makeCopyWithNewScopeAndJwk(scope: String, jwk: Jwk): Sender {
+        return InfluenzaSender(this, scope, jwk)
+    }
+
+    /**
+     * To ensure existing functionality, we need to be able to create a straight copy of this CovidSender
+     */
+    override fun makeCopy(): Sender {
+        return InfluenzaSender(this)
     }
 
     /**
