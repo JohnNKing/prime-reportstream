@@ -104,6 +104,7 @@ jobs:
         uses: ./.github/actions/demo-env
         with:
           env-name: ${{ needs.pre_job.outputs.env_name }}
+          GITHUB_TOKEN: ${{ secrets.DEMO_ENV }}
 
   deploy_release:
     name: "Deploy Release: ${{ needs.pre_job.outputs.env_name }}"

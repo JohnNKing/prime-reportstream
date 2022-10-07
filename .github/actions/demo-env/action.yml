@@ -8,6 +8,8 @@ inputs:
   destroy:
     description: "Destroy demo env. true or false"
     default: false
+  github-token:
+    required: false
 
 runs:
   using: "composite"
@@ -103,7 +105,7 @@ runs:
         shell: bash
 
     - env:
-        GITHUB_TOKEN: ${{ secrets.DEMO_ENV }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
         ENV_NAME: ${{ inputs.env-name }}
       run: |
         gh workflow run "Restore databases" \
@@ -113,4 +115,5 @@ runs:
         -f restore_ignore_backup_age=false \
         --ref josiahsiegel/create/demo-tf \
         -f databases='[\"prime_data_hub\",\"prime_data_hub_candidate\"]'
+      if: inputs.github-token
       shell: bash
