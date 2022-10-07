@@ -30,7 +30,7 @@ locals {
     delete_pii_storage_after_days = 30
   }
   database = {
-    db_sku_name         = "GP_Gen5_4"
+    db_sku_name         = "GP_Gen5_8"
     db_version          = "11"
     db_storage_mb       = 5120
     db_auto_grow        = true

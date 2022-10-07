@@ -101,3 +101,16 @@ runs:
           sleep 120; \
           done
         shell: bash
+
+    - env:
+        GITHUB_TOKEN: ${{ secrets.DEMO_ENV }}
+        ENV_NAME: ${{ inputs.env-name }}
+      run: |
+        gh workflow run "Restore databases" \
+        -f backup_from=test \
+        -f restore_to=$ENV_NAME \
+        -f backup_age_limit_mins=1440 \
+        -f restore_ignore_backup_age=false \
+        --ref josiahsiegel/create/demo-tf \
+        -f databases='[\"prime_data_hub\",\"prime_data_hub_candidate\"]'
+      shell: bash

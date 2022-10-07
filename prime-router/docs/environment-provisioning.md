@@ -95,8 +95,15 @@ done
 
 echo "apply complete"
 
-#Restore database
-#Storage account should contain a "dbbackups" file share.
+# Restore database from `test` environment:
+gh workflow run "Restore databases" \
+-f backup_from=test \
+-f restore_to=$env \
+-f backup_age_limit_mins=1440 \
+-f restore_ignore_backup_age=false \
+-f databases='[\"prime_data_hub\",\"prime_data_hub_candidate\"]'
+
+# Storage account should contain a "dbbackups" file share.
 ```
 
 > API endpoint should return `{"error": "Authentication Failed"}`:
@@ -107,18 +114,9 @@ echo "apply complete"
     * Azure VPN Settings > Point-to-site configuration > Download VPN client > OpenVPN directory
  2. Copy `remote`, `verify-x509-name`, and `<tls-auth>` to `.github/vpn/<env>.ovpn`
  3. Update key vaults in `operations/dnsmasq/config/<env>/hosts.local` with random id in name.
- 4. Restore database from `test` environment:
-      ```sh
-      gh workflow run "Restore databases" \
-      -f backup_from=test \
-      -f restore_to=$env \
-      -f backup_age_limit_mins=1440 \
-      -f restore_ignore_backup_age=false \
-      -f databases='[\"prime_data_hub\",\"prime_data_hub_candidate\"]'
-      ```
- 5. In Okta under "Security > API", add the server DNS to the "Trusted Origins" with CORS and Redirect access:
+ 4. In Okta under "Security > API", add the server DNS to the "Trusted Origins" with CORS and Redirect access:
       ![](assets/trusted_origins.png)
- 6. In Okta:
+ 5. In Okta:
       * click on "Applications" in the left-hand navigation
       * choose "ReportStream"
       * click the "General Settings" "Edit" button
