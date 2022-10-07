@@ -32,7 +32,7 @@ Push (or merge) code into any of the following branches:
 
 > 🚧 Below is for debugging only 🚧
 
-## 🔧Manual Create & Destroy
+## 🔧Manual Create
 
 ### Summary
 > 1. Navigate to `demo` Terraform directory using one of the following methods:
@@ -124,7 +124,7 @@ gh workflow run "Restore databases" \
       * add the new url to the "Sign-out redirect URIs" section: `https://<dns>`
       * ![](assets/redirect_urls.png)
 
-## Example Manual Destroy
+## 💥Manual Destroy
 
 ### Specify environment & Terraform path
 ```bash
