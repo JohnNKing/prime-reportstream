@@ -72,20 +72,6 @@ runs:
           done
         shell: bash
 
-    - env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
-        ENV_NAME: ${{ inputs.env-name }}
-      run: |
-        gh workflow run "Restore databases" \
-        -f backup_from=test \
-        -f restore_to=$ENV_NAME \
-        -f backup_age_limit_mins=1440 \
-        -f restore_ignore_backup_age=false \
-        --ref josiahsiegel/create/demo-tf \
-        -f databases='[\"prime_data_hub\",\"prime_data_hub_candidate\"]'
-      if: inputs.github-token
-      shell: bash
-
     - name: Terraform - validate
       if: inputs.destroy == 'false'
       working-directory: operations/app/terraform/vars/demo
@@ -117,3 +103,17 @@ runs:
           sleep 120; \
           done
         shell: bash
+
+    - env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        ENV_NAME: ${{ inputs.env-name }}
+      run: |
+        gh workflow run "Restore databases" \
+        -f backup_from=test \
+        -f restore_to=$ENV_NAME \
+        -f backup_age_limit_mins=20160 \
+        -f restore_ignore_backup_age=false \
+        --ref josiahsiegel/create/demo-tf \
+        -f databases='[\"prime_data_hub\",\"prime_data_hub_candidate\"]'
+      if: inputs.github-token && inputs.destroy == 'false'
+      shell: bash
