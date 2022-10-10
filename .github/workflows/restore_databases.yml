@@ -205,7 +205,7 @@ jobs:
       - backup_source
     # Restore only if backup age is less than limit, backup age is ignored, and the restore destination is either staging or test
     if: |
-      (needs.pre_job.outputs.restore_ignore_backup_age == 'true' || needs.backup_source.outputs.backup_age_valid == 'true') &&
+      (needs.pre_job.outputs.restore_ignore_backup_age == 'true' || needs.backup_source.outputs.backup_age_valid != 'true') &&
       (needs.pre_job.outputs.sink_env_name != 'prod')
     runs-on: ubuntu-latest
     strategy:
