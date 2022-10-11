@@ -89,8 +89,8 @@ class FHIRRouter(
             )
 
             // upload new copy to blobstore
-            var bodyBytes = FhirTranscoder.encode(fhirDocument).toByteArray()
-            var blobInfo = BlobAccess.uploadBody(
+            val bodyBytes = FhirTranscoder.encode(fhirDocument).toByteArray()
+            val blobInfo = BlobAccess.uploadBody(
                 Report.Format.FHIR,
                 bodyBytes,
                 report.name,

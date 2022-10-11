@@ -146,7 +146,7 @@ class BlobAccess(
         }
 
         /**
-         * Upload a raw [blobBytes] as [blobName]
+         * Upload a raw [bytes] as [blobName]
          * @return the url for the uploaded blob
          */
         internal fun uploadBlob(
@@ -155,13 +155,13 @@ class BlobAccess(
             blobContainerName: String = defaultBlobContainerName,
             blobConnEnvVar: String = defaultConnEnvVar
         ): String {
-            logger.info("Starting uploadBlob of $blobName")
+            logger.debug("Starting uploadBlob of $blobName")
             val blobClient = getBlobContainer(blobContainerName, blobConnEnvVar).getBlobClient(blobName)
             blobClient.upload(
                 ByteArrayInputStream(bytes),
                 bytes.size.toLong()
             )
-            logger.info("Done uploadBlob of $blobName")
+            logger.info("Uploaded Blob $blobName")
             return blobClient.blobUrl
         }
 
@@ -184,11 +184,11 @@ class BlobAccess(
          */
         fun copyBlob(fromBlobUrl: String, toBlobContainer: String, toBlobConnEnvVar: String): String {
             val fromBytes = downloadBlob(fromBlobUrl)
-            logger.info("Ready to copy ${fromBytes.size} bytes from $fromBlobUrl")
+            logger.debug("Ready to copy ${fromBytes.size} bytes from $fromBlobUrl")
             val toFilename = BlobInfo.getBlobFilename(fromBlobUrl)
-            logger.info("New blob filename will be $toFilename")
+            logger.debug("New blob filename will be $toFilename")
             val toBlobUrl = uploadBlob(toFilename, fromBytes, toBlobContainer, toBlobConnEnvVar)
-            logger.info("New blob URL is $toBlobUrl")
+            logger.info("Copied ${fromBytes.size} from $fromBlobUrl to $toBlobUrl")
             return toBlobUrl
         }
 

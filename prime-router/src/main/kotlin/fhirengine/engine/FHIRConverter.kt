@@ -20,7 +20,7 @@ import gov.cdc.prime.router.fhirengine.utils.FhirTranscoder
 import gov.cdc.prime.router.fhirengine.utils.HL7Reader
 
 /**
- * Process a [message] off of the raw-elr azure queue, convert it into FHIR, and store for next step.
+ * Process a message off of the raw-elr azure queue, convert it into FHIR, and store for next step.
  * [metadata] mockable metadata
  * [settings] mockable settings
  * [db] mockable database access
@@ -105,8 +105,8 @@ class FHIRConverter(
                 )
 
                 // upload to blobstore
-                var bodyBytes = FhirTranscoder.encode(bundle).toByteArray()
-                var blobInfo = BlobAccess.uploadBody(
+                val bodyBytes = FhirTranscoder.encode(bundle).toByteArray()
+                val blobInfo = BlobAccess.uploadBody(
                     Report.Format.FHIR,
                     bodyBytes,
                     report.name,

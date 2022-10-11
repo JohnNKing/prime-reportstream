@@ -10,6 +10,7 @@ import gov.cdc.prime.router.fhirengine.translation.hl7.utils.ConstantSubstitutor
 import gov.cdc.prime.router.fhirengine.translation.hl7.utils.CustomContext
 import gov.cdc.prime.router.fhirengine.translation.hl7.utils.FhirPathUtils
 import gov.cdc.prime.router.fhirengine.translation.hl7.utils.HL7Utils
+import org.apache.commons.io.FilenameUtils
 import org.apache.logging.log4j.kotlin.Logging
 import org.hl7.fhir.r4.model.Base
 import org.hl7.fhir.r4.model.Bundle
@@ -28,19 +29,25 @@ class FhirToHl7Converter(
     private var terser: Terser? = null
 ) : Logging {
     /**
-     * Convert a FHIR [bundle] to an HL7 message using the [schema] in the [schemaFolder] location to perform the conversion.
+     * Convert a FHIR [bundle] to an HL7 message using the [schema] which includes it folder location to perform the conversion.
      * The converter will error out if [strict] is set to true and there is an error during the conversion.  if [strict]
      * is set to false (the default) then any conversion errors are logged as a warning.  Note [strict] does not affect
      * the schema validation process.
-     * @property terser the terser to use for building the HL7 message (use for dependency injection)
+     * @param terser the terser to use for building the HL7 message (use for dependency injection)
      */
     constructor(
         bundle: Bundle,
         schema: String,
-        schemaFolder: String,
         strict: Boolean = false,
         terser: Terser? = null
-    ) : this(bundle, ConfigSchemaReader.fromFile(schema, schemaFolder), strict, terser)
+    ) : this(
+        bundle,
+        ConfigSchemaReader.fromFile(
+            FilenameUtils.getName(schema),
+            FilenameUtils.getPathNoEndSeparator(schema)
+        ),
+        strict, terser
+    )
 
     /**
      * Convert the given bundle to an HL7 message.

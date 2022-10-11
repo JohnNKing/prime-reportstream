@@ -2,6 +2,9 @@ package gov.cdc.prime.router
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import gov.cdc.prime.router.common.DateUtilities
+import gov.cdc.prime.router.fhirengine.translation.hl7.FhirToHl7Converter
+import gov.cdc.prime.router.fhirengine.translation.hl7.SchemaException
+import org.hl7.fhir.r4.model.Bundle
 import java.time.LocalTime
 import java.time.OffsetDateTime
 import java.time.ZoneId
@@ -204,13 +207,23 @@ open class Receiver(
     fun consistencyErrorMessage(metadata: Metadata): String? {
         // TODO: Temporary workaround for full-ELR as we do not have a way to load schemas yet
         if (topic == Topic.FULL_ELR.json_val) return null
+        if (translation is CustomConfiguration) {
+            when (this.topic) {
+                Topic.FULL_ELR.json_val -> {
+                    try {
+                        FhirToHl7Converter(Bundle(), translation.schemaName)
+                    } catch (e: SchemaException) {
+                        return e.message
+                    }
+                }
 
-        when (translation) {
-            is CustomConfiguration -> {
-                if (metadata.findSchema(translation.schemaName) == null)
-                    return "Invalid schemaName: ${translation.schemaName}"
+                else -> {
+                    if (metadata.findSchema(translation.schemaName) == null)
+                        return "Invalid schemaName: ${translation.schemaName}"
+                }
             }
         }
+
         return null
     }
 
