@@ -121,7 +121,8 @@ abstract class SubmissionReceiver(
         ): SubmissionReceiver {
             val receiver by lazy {
                 when (sender) {
-                    is CovidSender, is MonkeypoxSender -> TopicReceiver(workflowEngine, actionHistory)
+                    is CovidSender, is MonkeypoxSender, is InfluenzaSender ->
+                        TopicReceiver(workflowEngine, actionHistory)
                     else -> ELRReceiver(workflowEngine, actionHistory)
                 }
             }

@@ -449,6 +449,7 @@ elements:
 
   - name: patient_gender
     type: CODE
+    valueSet: hl70001
     pii: false
     cardinality: ZERO_OR_ONE
     hl7Field: PID-8-1
@@ -539,6 +540,7 @@ elements:
 
   - name: patient_race
     type: CODE
+    valueSet: hl70005
     pii: false
     cardinality: ZERO_OR_ONE
     hl7Field: PID-10
@@ -1277,15 +1279,6 @@ elements:
     hhsGuidanceField:
     hl7Field: AOE
     hl7AOEQuestion: 65222-2
-
-  - name: patient_age
-    type: NUMBER
-    pii: true
-    cardinality: ZERO_OR_ONE
-    natFlatFileField: Patient_age
-    hhsGuidanceField:
-    hl7Field: AOE
-    hl7AOEQuestion: 30525-0
 
   - name: pregnant
     type: CODE

@@ -56,6 +56,15 @@ abstract class RequestFunction(
     }
 
     /**
+     * Extracts the topic from the request headers or query string parameters
+     * @param request the http request message from the client
+     */
+    protected fun extractTopic(request: HttpRequestMessage<String?>): String {
+        return request.headers[TOPIC_PARAMETER]
+            ?: request.queryParameters.getOrDefault(TOPIC_PARAMETER, "covid-19")
+    }
+
+    /**
      * Take the request and parse it into a [ValidatedRequest] object with some
      * sensible default values
      */
@@ -63,7 +72,7 @@ abstract class RequestFunction(
         val actionLogs = ActionLogger()
         HttpUtilities.payloadSizeCheck(request)
 
-        val topic = request.queryParameters.getOrDefault(TOPIC_PARAMETER, "covid-19")
+        val topic = extractTopic(request)
 
         val receiverNamesText = request.queryParameters.getOrDefault(ROUTE_TO_PARAMETER, "")
         val routeTo = if (receiverNamesText.isNotBlank()) receiverNamesText.split(ROUTE_TO_SEPARATOR) else emptyList()

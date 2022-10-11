@@ -83,6 +83,14 @@ data class ReportStreamFilters(
             processingModeFilter = listOf("doesNotMatch(processing_mode_code, T, D)"), // No Training/Debug data
         )
 
+        private val defaultInfluenzaFilters = ReportStreamFilters(
+            topic = "influenza",
+            jurisdictionalFilter = listOf("allowNone()"),
+            qualityFilter = listOf("allowAll()"),
+            routingFilter = listOf("allowAll()"),
+            processingModeFilter = listOf("doesNotMatch(processing_mode_code, T, D)"),
+        )
+
         private val defaultCsvFileTestFilters = ReportStreamFilters(
             topic = "CsvFileTests-topic",
             jurisdictionalFilter = listOf("allowAll()"),
@@ -105,6 +113,7 @@ data class ReportStreamFilters(
         val defaultFiltersByTopic: Map<String, ReportStreamFilters> = mapOf(
             defaultCovid19Filters.topic to defaultCovid19Filters,
             defaultMonkeypoxFilters.topic to defaultMonkeypoxFilters,
+            defaultInfluenzaFilters.topic to defaultInfluenzaFilters,
             defaultCsvFileTestFilters.topic to defaultCsvFileTestFilters,
             defaultTestFilters.topic to defaultTestFilters,
         )
