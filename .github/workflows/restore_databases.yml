@@ -212,7 +212,6 @@ jobs:
       max-parallel: 1
       matrix:
         db: ${{ fromJson(needs.pre_job.outputs.databases) }}
-    concurrency: ${{ needs.pre_job.outputs.sink_env_name }}
     environment: ${{ needs.pre_job.outputs.sink_env_name }}
     env:
       sink_env_name: ${{ needs.pre_job.outputs.sink_env_name }}
