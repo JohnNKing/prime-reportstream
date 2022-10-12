@@ -636,10 +636,7 @@ class LookupSenderAutomationValuesets : Mapper {
 
         val tableFilter = lookupTable.FilterBuilder()
         val valueSetName = args[1] // args[0] is the incoming element name (see kdoc above)
-        var version = ""
-        if (args.size > 2) {
-            version = args[2]
-        }
+        val version = args.elementAtOrNull(2) ?: ""
 
         tableFilter
             .equalsIgnoreCase("name", valueSetName)
@@ -1181,9 +1178,31 @@ class NullMapper : Mapper {
     }
 }
 
+/**
+ * The singleton that provides some logic for mappers
+ */
 object Mappers {
+    /** Our mapper matching regex patter */
+    const val mapperRegexPattern: String = "([a-zA-Z0-9]+)\\x28([a-z, \\x2E_\\x2DA-Z0-9?&$*:^><=!]*)\\x29"
+
+    private val mapperRegex: Regex = Regex(mapperRegexPattern)
+
+    /**
+     * Given a field definition, checks to see if it matches the regex for parsing a mapper
+     */
+    fun fieldIsMatch(field: String): Boolean {
+        return mapperRegex.matches(field)
+    }
+
+    /**
+     * Given a string, this attempts to parse this to a tuple that contains the name of the mapper and
+     * the arguments that it is passed. For example, if [field] contains `use(specimen_collection_date_time)`
+     * then the return value would be ("use", ["specimen_collection_date_time"])
+     * @param field - the string value to parse
+     * @return the parsed contents of the field
+     */
     fun parseMapperField(field: String): Pair<String, List<String>> {
-        val match = Regex("([a-zA-Z0-9]+)\\x28([a-z, \\x2E_\\x2DA-Z0-9?&$*:^><=!]*)\\x29").find(field)
+        val match = mapperRegex.find(field)
             ?: error("Mapper field $field does not parse")
         val args = if (match.groupValues[2].isEmpty())
             emptyList()
