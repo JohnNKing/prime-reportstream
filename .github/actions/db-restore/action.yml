@@ -36,6 +36,7 @@ runs:
           az postgres db delete -g ${{ inputs.resource-group }} -s ${{ inputs.host }} -n ${{ inputs.database }} --yes
           az postgres db create -g ${{ inputs.resource-group }} -s ${{ inputs.host }} -n ${{ inputs.database }} \
             --charset "UTF8" --collation "English_United States.1252"
+          sleep 15;
           sudo PGPASSWORD=${{ inputs.pass }} \
           PGSSLMODE=require \
           pg_restore ${{ inputs.options }} -h ${{ inputs.host }}.postgres.database.azure.com -U ${{ inputs.user }}@${{ inputs.host }} \

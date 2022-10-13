@@ -109,7 +109,7 @@ runs:
       shell: bash
       run: |
         az postgres server update -g prime-data-hub-${{ inputs.env-name }} \
-        -n pdh${{ inputs.env-name }}-pgsql --sku-name GP_Gen5_64
+        -n pdh${{ inputs.env-name }}-pgsql --sku-name GP_Gen5_32
 
     - env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
