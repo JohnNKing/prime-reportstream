@@ -2,9 +2,9 @@
 # Key Vaults #
 ##############
 
-10.0.5.6 pdhdemo1-appconfig.vaultcore.azure.net pdhdemo1-appconfig.privatelink.vaultcore.azure.net
-10.0.5.4 pdhdemo1-clientconfig.vaultcore.azure.net pdhdemo1-clientconfig.privatelink.vaultcore.azure.net
-10.0.5.5 pdhdemo1-keyvault.vaultcore.azure.net pdhdemo1-keyvault.privatelink.vaultcore.azure.net
+10.0.5.6 pdhdemo1-appconfigmt8.vaultcore.azure.net pdhdemo1-appconfigmt8.privatelink.vaultcore.azure.net
+10.0.5.4 pdhdemo1-clientconfigmt8.vaultcore.azure.net pdhdemo1-clientconfigmt8.privatelink.vaultcore.azure.net
+10.0.5.5 pdhdemo1-keyvaultmt8.vaultcore.azure.net pdhdemo1-keyvaultmt8.privatelink.vaultcore.azure.net
 
 
 #############

@@ -12,7 +12,6 @@
 #############
 
 10.0.5.7  pdhdemo2-pgsql.postgres.database.azure.com pdhdemo2-pgsql.privatelink.postgres.database.azure.com
-10.1.5.4  pdhdemo2-pgsql-replica.postgres.database.azure.com pdhdemo2-pgsql-replica.privatelink.postgres.database.azure.com
 
 
 ####################
