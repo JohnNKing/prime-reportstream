@@ -265,7 +265,8 @@ class ELRReceiver : SubmissionReceiver {
             Format.HL7,
             sources,
             messages.size,
-            metadata = metadata
+            metadata = metadata,
+            nextAction = TaskAction.convert
         )
 
         // dupe detection if needed, and if we have not already produced an error
@@ -273,7 +274,7 @@ class ELRReceiver : SubmissionReceiver {
             doDuplicateDetection(
                 workflowEngine,
                 report,
-                actionLogs
+                actionLogs,
             )
         }
 
@@ -291,7 +292,7 @@ class ELRReceiver : SubmissionReceiver {
         val eventAction = if (sender.customerStatus == CustomerStatus.INACTIVE) {
             report.nextAction = TaskAction.none
             Event.EventAction.NONE
-        } else Event.EventAction.PROCESS
+        } else Event.EventAction.CONVERT
 
         // record that the submission was received
         val blobInfo = workflowEngine.recordReceivedReport(
@@ -314,11 +315,7 @@ class ELRReceiver : SubmissionReceiver {
                     report.id,
                     blobInfo.blobUrl,
                     BlobAccess.digestToString(blobInfo.digest),
-                    sender.fullName,
-                    // TODO: do we need these here? Will need to figure out how to serialize/deserialize
-                    //                options,
-                    //                defaults,
-                    //                routeTo
+                    sender.fullName
                 ).serialize()
             )
         }
