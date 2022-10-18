@@ -114,9 +114,10 @@ gh workflow run "Restore databases" \
     * Azure VPN Settings > Point-to-site configuration > Download VPN client > OpenVPN directory
  2. Copy `remote`, `verify-x509-name`, and `<tls-auth>` to `.github/vpn/<env>.ovpn`
  3. Update key vaults in `operations/dnsmasq/config/<env>/hosts.local` with random id in name.
- 4. In Okta under "Security > API", add the server DNS to the "Trusted Origins" with CORS and Redirect access:
+ 4. Add `<env>-prime-cdc-gov` & `<env>-reportstream-cdc-gov` SSL certificates to `pdh<env>-keyvault`
+ 5. In Okta under "Security > API", add the server DNS to the "Trusted Origins" with CORS and Redirect access:
       ![](assets/trusted_origins.png)
- 5. In Okta:
+ 6. In Okta:
       * click on "Applications" in the left-hand navigation
       * choose "ReportStream"
       * click the "General Settings" "Edit" button
