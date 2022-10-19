@@ -280,6 +280,12 @@ elements:
   - name: specimen_id_universal_id_type
     default: CLIA
 
+  - name: specimen_type_name
+    mapperOverridesValue: true
+
+  - name: specimen_type_code_system
+    mapperOverridesValue: true
+
   - name: testing_lab_specimen_received_datetime
     mapper: use(specimen_collection_date_time)
 
