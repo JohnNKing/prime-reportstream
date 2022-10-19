@@ -115,15 +115,17 @@ gh workflow run "Restore databases" \
  2. Copy `remote`, `verify-x509-name`, and `<tls-auth>` to `.github/vpn/<env>.ovpn`
  3. Update key vaults in `operations/dnsmasq/config/<env>/hosts.local` with random id in name.
  4. Add `<env>-prime-cdc-gov` & `<env>-reportstream-cdc-gov` SSL certificates to `pdh<env>-keyvault`
- 5. In Okta under "Security > API", add the server DNS to the "Trusted Origins" with CORS and Redirect access:
+ 5. In [Okta](https://hhs-prime-admin.oktapreview.com/) under "Security > API", add the server DNS to the "Trusted Origins" with CORS and Redirect access:
       ![](assets/trusted_origins.png)
  6. In Okta:
-      * click on "Applications" in the left-hand navigation
-      * choose "ReportStream"
-      * click the "General Settings" "Edit" button
-      * add the new url to the "Sign-in redirect URI" section: `https://<dns>/login/callback`
-      * add the new url to the "Sign-out redirect URIs" section: `https://<dns>`
-      * ![](assets/redirect_urls.png)
+    * click on "Applications" in the left-hand navigation
+    * choose "ReportStream"
+    * click the "General Settings" "Edit" button
+    * add the new url to the "Sign-in redirect URI" section: `https://<dns>/login/callback`
+    * add the new url to the "Sign-out redirect URIs" section: `https://<dns>`
+    * ![](assets/redirect_urls.png)
+ 7. User will need to be assigned to the application in Okta
+    * Applications > ReportStream > Assignments
 
 ## 💥Manual Destroy
 
