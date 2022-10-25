@@ -11,6 +11,8 @@ import { RSReceiver } from "../../../network/api/Organizations/Receivers";
 import { useOrgDeliveries } from "../../../hooks/network/History/DeliveryHooks";
 import Spinner from "../../../components/Spinner";
 import TableFilters from "../../../components/Table/TableFilters";
+import usePagination from "../../../hooks/UsePagination";
+import { RSDelivery } from "../../../config/endpoints/deliveries";
 
 import { getReportAndDownload } from "./ReportsUtils";
 import ServicesDropdown from "./ServicesDropdown";
@@ -112,21 +114,37 @@ const ServiceDisplay = ({
 */
 function DeliveriesTable() {
     const { oktaToken, activeMembership } = useSessionContext();
-    const filterManager = useFilterManager(filterManagerDefaults);
     const { loadingServices, services, activeService, setActiveService } =
         useReceiverFeeds();
+
+    const filterManager = useFilterManager(filterManagerDefaults);
     const filters = useMemo(
         () => extractFiltersFromManager(filterManager),
         [filterManager]
     );
-    // TODO: Doesn't update parameters because of the config memo dependency array
-    const { serviceReportsList } = useOrgDeliveries(
+
+    const { fetchDeliveriesList } = useOrgDeliveries(
         activeMembership?.parsedName,
         activeService?.name,
         filters
     );
+    const startCursor = filters.order === "DESC" ? filters.to : filters.from;
+    const isCursorInclusive = filters.order === "ASC";
+    const extractCursor = (d: RSDelivery) => d.batchReadyAt;
 
-    const handleSetActive = (name: string) => {
+    const {
+        currentPageResults: pageOfDeliveries,
+        paginationProps,
+        isLoading: loadingPageOfDeliveries,
+    } = usePagination<RSDelivery>({
+        startCursor,
+        isCursorInclusive,
+        pageSize: filters.size,
+        fetchResults: fetchDeliveriesList,
+        extractCursor,
+    });
+
+    const handleSettingActiveService = (name: string) => {
         setActiveService(services.find((item) => item.name === name));
     };
 
@@ -179,18 +197,22 @@ function DeliveriesTable() {
                 },
             },
         ],
-        rows: serviceReportsList || [],
+        rows: pageOfDeliveries || [],
     };
-    if (loadingServices) return <Spinner />;
+    if (loadingServices || loadingPageOfDeliveries) return <Spinner />;
     return (
         <>
             <ServiceDisplay
                 services={services}
                 activeService={activeService}
-                handleSetActive={handleSetActive}
+                handleSetActive={handleSettingActiveService}
             />
             <TableFilters filterManager={filterManager} />
-            <Table config={resultsTableConfig} filterManager={filterManager} />
+            <Table
+                config={resultsTableConfig}
+                filterManager={filterManager}
+                paginationProps={paginationProps}
+            />
         </>
     );
 }

@@ -23,7 +23,7 @@ const useOrgDeliveries = (
     service?: string,
     filters?: Filters
 ) => {
-    const { authorizedFetch, rsUseQuery } = useAuthorizedFetch<RSDelivery[]>();
+    const { authorizedFetch } = useAuthorizedFetch<RSDelivery[]>();
 
     const adminSafeOrgName = useAdminSafeOrgName(org); // "PrimeAdmins" -> "ignore"
     const orgAndService = useMemo(
@@ -44,13 +44,7 @@ const useOrgDeliveries = (
             }),
         [authorizedFetch, orgAndService, filters]
     );
-    const { data } = rsUseQuery(
-        // sets key with orgAndService so multiple queries can be cached when swapping services
-        [getOrgDeliveries.queryKey, { orgAndService, filters }],
-        memoizedDataFetch,
-        { enabled: !!service }
-    );
-    return { serviceReportsList: data };
+    return { fetchDeliveriesList: memoizedDataFetch };
 };
 
 /** Hook consumes the ReportsApi "detail" endpoint and delivers the response
